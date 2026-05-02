@@ -1,10 +1,9 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
-export default auth((req: NextRequest & { auth?: { user?: { role?: string } } | null }) => {
+export default auth((req) => {
   const { pathname } = req.nextUrl;
-  const session = req.auth;
+  const session = req.auth as { user?: { role?: string } } | null;
 
   if (pathname.startsWith("/api/admin")) {
     if (!session?.user) {
