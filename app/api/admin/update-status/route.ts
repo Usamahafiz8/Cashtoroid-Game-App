@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { prisma } from "@/lib/prisma";
 import { updateStatusSchema } from "@/lib/validators";
+import { sendVideoStatusEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
   const guard = await requireAdmin();
@@ -21,7 +22,10 @@ export async function POST(req: NextRequest) {
     const { videoId, status, flagReason } = parsed.data;
     const isFlagged = !!flagReason;
 
-    const video = await prisma.video.findUnique({ where: { id: videoId } });
+    const video = await prisma.video.findUnique({
+      where: { id: videoId },
+      include: { user: { select: { email: true, username: true } } },
+    });
     if (!video) {
       return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
     }
@@ -30,6 +34,15 @@ export async function POST(req: NextRequest) {
       where: { id: videoId },
       data: { status, isFlagged, flagReason: flagReason ?? null },
     });
+
+    // Non-blocking email notification
+    sendVideoStatusEmail({
+      to: video.user.email,
+      username: video.user.username,
+      videoTitle: video.title ?? video.url,
+      status,
+      flagReason,
+    }).catch(() => {});
 
     return NextResponse.json({ success: true, data: { message: "Status updated" } });
   } catch (err) {

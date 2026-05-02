@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-guard";
 import { prisma } from "@/lib/prisma";
 import { markPaidSchema } from "@/lib/validators";
+import { sendPayoutNotificationEmail } from "@/lib/email";
+import { calculateLeaderboard } from "@/lib/leaderboard";
 
 export async function POST(req: NextRequest) {
   const guard = await requireAdmin();
@@ -28,6 +30,19 @@ export async function POST(req: NextRequest) {
       where: { id: userId },
       data: { isPaid: true, paidAt: new Date() },
     });
+
+    // Non-blocking email notification
+    calculateLeaderboard()
+      .then((lb) => {
+        const entry = lb.find((e) => e.userId === userId);
+        return sendPayoutNotificationEmail({
+          to: user.email,
+          username: user.username,
+          totalViews: entry?.totalViews ?? 0,
+          rank: entry?.rank ?? 0,
+        });
+      })
+      .catch(() => {});
 
     return NextResponse.json({ success: true, data: { message: "Marked as paid" } });
   } catch (err) {
