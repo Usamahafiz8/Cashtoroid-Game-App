@@ -1,0 +1,107 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { updateProfileSchema } from "@/lib/validators";
+
+export async function GET() {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userId = (session.user as { id?: string }).id!;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        payoutInfo: true,
+        isPaid: true,
+        paidAt: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, data: user });
+  } catch (err) {
+    console.error("[users/me GET]", err);
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userId = (session.user as { id?: string }).id!;
+    const body = await req.json();
+    const parsed = updateProfileSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: "Validation failed", details: parsed.error.errors },
+        { status: 400 }
+      );
+    }
+
+    const { username, email, payoutInfo } = parsed.data;
+
+    // Check uniqueness of username/email if being changed
+    if (username || email) {
+      const conflict = await prisma.user.findFirst({
+        where: {
+          AND: [
+            { id: { not: userId } },
+            { OR: [...(username ? [{ username }] : []), ...(email ? [{ email }] : [])] },
+          ],
+        },
+      });
+      if (conflict) {
+        return NextResponse.json(
+          { success: false, error: "Username or email already taken" },
+          { status: 409 }
+        );
+      }
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(username !== undefined ? { username } : {}),
+        ...(email !== undefined ? { email } : {}),
+        ...(payoutInfo !== undefined ? { payoutInfo } : {}),
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        payoutInfo: true,
+        isPaid: true,
+        paidAt: true,
+        createdAt: true,
+      },
+    });
+
+    return NextResponse.json({ success: true, data: updated });
+  } catch (err) {
+    console.error("[users/me PUT]", err);
+    return NextResponse.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

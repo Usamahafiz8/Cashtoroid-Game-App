@@ -195,14 +195,99 @@ const spec: OpenAPIV3.Document = {
           userId: { type: "string", example: "clxxxxxxxxxxxxxx" },
         },
       },
+
+      // ── Auth ─────────────────────────────────────────────────────────────────
+      LoginRequest: {
+        type: "object",
+        required: ["email", "password"],
+        properties: {
+          email: { type: "string", format: "email", example: "player@example.com" },
+          password: { type: "string", example: "securepass123" },
+        },
+      },
+      ChangePasswordRequest: {
+        type: "object",
+        required: ["currentPassword", "newPassword"],
+        properties: {
+          currentPassword: { type: "string", example: "oldpass123" },
+          newPassword: { type: "string", minLength: 6, example: "newpass456" },
+        },
+      },
+      ForgotPasswordRequest: {
+        type: "object",
+        required: ["email"],
+        properties: {
+          email: { type: "string", format: "email", example: "player@example.com" },
+        },
+      },
+      ResetPasswordRequest: {
+        type: "object",
+        required: ["token", "newPassword"],
+        properties: {
+          token: { type: "string", description: "JWT reset token from the email link" },
+          newPassword: { type: "string", minLength: 6, example: "newpass456" },
+        },
+      },
+
+      // ── Profile ───────────────────────────────────────────────────────────────
+      UserProfile: {
+        type: "object",
+        properties: {
+          id: { type: "string", example: "clxxxxxxxxxxxxxx" },
+          username: { type: "string", example: "player_one" },
+          email: { type: "string", format: "email" },
+          role: { type: "string", enum: ["user", "admin"] },
+          payoutInfo: { type: "string", nullable: true, description: "JSON string: { method, accountNumber, name }" },
+          isPaid: { type: "boolean" },
+          paidAt: { type: "string", format: "date-time", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+        },
+      },
+      UpdateProfileRequest: {
+        type: "object",
+        properties: {
+          username: { type: "string", minLength: 3, maxLength: 20, pattern: "^[a-zA-Z0-9_]+$", example: "new_username" },
+          email: { type: "string", format: "email", example: "new@example.com" },
+          payoutInfo: { type: "string", nullable: true, example: "{\"method\":\"PayPal\",\"accountNumber\":\"user@paypal.com\",\"name\":\"John Doe\"}" },
+        },
+      },
+      UserStats: {
+        type: "object",
+        properties: {
+          totalVideos: { type: "integer", example: 5 },
+          approvedVideos: { type: "integer", example: 3 },
+          pendingVideos: { type: "integer", example: 1 },
+          rejectedVideos: { type: "integer", example: 1 },
+          totalViews: { type: "integer", example: 145000 },
+          rank: { type: "integer", nullable: true, example: 7, description: "Leaderboard rank, null if no approved videos" },
+        },
+      },
+
+      // ── Video patch ───────────────────────────────────────────────────────────
+      UpdateVideoRequest: {
+        type: "object",
+        properties: {
+          title: { type: "string", maxLength: 200, example: "Updated title" },
+        },
+      },
+
+      // ── Admin role ────────────────────────────────────────────────────────────
+      UpdateRoleRequest: {
+        type: "object",
+        required: ["role"],
+        properties: {
+          role: { type: "string", enum: ["user", "admin"] },
+        },
+      },
     },
   },
 
   // ─── Tags ───────────────────────────────────���───────────────���────────────
   tags: [
-    { name: "Auth", description: "Registration and sign-in" },
+    { name: "Auth", description: "Registration, login, logout, and password management" },
+    { name: "Profile", description: "Authenticated user's own profile and stats" },
     { name: "Videos", description: "Video submission and retrieval (authenticated)" },
-    { name: "Leaderboard", description: "Public leaderboard" },
+    { name: "Leaderboard", description: "Public leaderboard and personal rank" },
     { name: "Admin", description: "Admin-only operations (role: admin)" },
     { name: "Cron", description: "Scheduled view update trigger" },
   ],
@@ -812,6 +897,506 @@ const spec: OpenAPIV3.Document = {
           },
           "401": { description: "Invalid or missing cron secret", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
           "500": { description: "Server error during update", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    // ── Auth — new endpoints ──────────────────────────────────────────────────
+    "/api/auth/login": {
+      post: {
+        tags: ["Auth"],
+        summary: "Validate credentials (REST login)",
+        description:
+          "Validates email + password and returns basic user info. " +
+          "**For a full browser session** also POST to `/api/auth/callback/credentials` with the same credentials plus `csrfToken` and `callbackUrl` (see that endpoint). " +
+          "This endpoint is useful for non-browser clients to verify credentials before establishing a session.",
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/LoginRequest" } } },
+        },
+        responses: {
+          "200": {
+            description: "Credentials valid",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            username: { type: "string" },
+                            email: { type: "string" },
+                            role: { type: "string", enum: ["user", "admin"] },
+                            message: { type: "string" },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Validation error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Invalid credentials", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/auth/logout": {
+      post: {
+        tags: ["Auth"],
+        summary: "Log out (clear session cookies)",
+        description: "Clears all NextAuth session cookies for the current browser session. Requires an active session.",
+        security: [{ cookieAuth: [] }],
+        responses: {
+          "200": {
+            description: "Logged out",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { type: "object", properties: { message: { type: "string", example: "Logged out successfully" } } } } },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not logged in", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/auth/change-password": {
+      put: {
+        tags: ["Auth"],
+        summary: "Change password",
+        description: "Updates the authenticated user's password. Requires the current password for verification.",
+        security: [{ cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/ChangePasswordRequest" } } },
+        },
+        responses: {
+          "200": {
+            description: "Password changed",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { type: "object", properties: { message: { type: "string", example: "Password changed successfully" } } } } },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Validation error or incorrect current password", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/auth/forgot-password": {
+      post: {
+        tags: ["Auth"],
+        summary: "Request password reset email",
+        description:
+          "Sends a password-reset link to the given email address if it belongs to a registered user. " +
+          "Always returns success to prevent email enumeration. " +
+          "The link contains a signed JWT that expires in **1 hour** and is automatically invalidated once the password is changed.",
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/ForgotPasswordRequest" } } },
+        },
+        responses: {
+          "200": {
+            description: "Request received (always — even if email is not registered)",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { type: "object", properties: { message: { type: "string" } } } } },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Validation error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/auth/reset-password": {
+      post: {
+        tags: ["Auth"],
+        summary: "Reset password with token",
+        description:
+          "Accepts the JWT token from the reset email and a new password. " +
+          "The token is validated and the password is updated. " +
+          "The token is single-use — once the password changes, the old token is invalidated.",
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/ResetPasswordRequest" } } },
+        },
+        responses: {
+          "200": {
+            description: "Password reset successfully",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { type: "object", properties: { message: { type: "string" } } } } },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Invalid or expired token, or validation error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    // ── Profile ───────────────────────────────────────────────────────────────
+    "/api/users/me": {
+      get: {
+        tags: ["Profile"],
+        summary: "Get own profile",
+        description: "Returns the full profile of the currently authenticated user including payoutInfo and payment status.",
+        security: [{ cookieAuth: [] }],
+        responses: {
+          "200": {
+            description: "User profile",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/UserProfile" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+      put: {
+        tags: ["Profile"],
+        summary: "Update own profile",
+        description:
+          "Updates the authenticated user's username, email, and/or payout info. " +
+          "All fields are optional — only provided fields are updated. " +
+          "Username and email are checked for uniqueness.",
+        security: [{ cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateProfileRequest" } } },
+        },
+        responses: {
+          "200": {
+            description: "Updated profile",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/UserProfile" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Validation error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "409": { description: "Username or email already taken", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/users/me/stats": {
+      get: {
+        tags: ["Profile"],
+        summary: "Get own stats",
+        description: "Returns the authenticated user's video counts by status, total view count across approved videos, and current leaderboard rank.",
+        security: [{ cookieAuth: [] }],
+        responses: {
+          "200": {
+            description: "User stats",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/UserStats" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    // ── Videos — single-record ops ────────────────────────────────────────────
+    "/api/videos/{id}": {
+      get: {
+        tags: ["Videos"],
+        summary: "Get a single video",
+        description: "Returns full details for one video. Users can only fetch their own videos; admins can fetch any.",
+        security: [{ cookieAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" }, description: "Video CUID" },
+        ],
+        responses: {
+          "200": {
+            description: "Video details",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/VideoWithUser" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Trying to access another user's video", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "404": { description: "Video not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+      patch: {
+        tags: ["Videos"],
+        summary: "Edit video title",
+        description: "Updates a video's title. Users can only edit their own **pending** videos; admins can edit any video.",
+        security: [{ cookieAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" }, description: "Video CUID" },
+        ],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateVideoRequest" } } },
+        },
+        responses: {
+          "200": {
+            description: "Updated video",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/Video" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Validation error or video is not pending", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not the video owner", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "404": { description: "Video not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+      delete: {
+        tags: ["Videos"],
+        summary: "Delete a video",
+        description: "Deletes a video permanently. Users can only delete their own **pending** videos; admins can delete any video.",
+        security: [{ cookieAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" }, description: "Video CUID" },
+        ],
+        responses: {
+          "200": {
+            description: "Video deleted",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { type: "object", properties: { message: { type: "string" } } } } },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Video is not in pending status (for non-admins)", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not the video owner", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "404": { description: "Video not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    // ── Leaderboard — personal rank ───────────────────────────────────────────
+    "/api/leaderboard/me": {
+      get: {
+        tags: ["Leaderboard"],
+        summary: "Get own leaderboard rank",
+        description:
+          "Returns the authenticated user's current rank, total views, and video count. " +
+          "If the user has no approved videos, rank is `null`.",
+        security: [{ cookieAuth: [] }],
+        responses: {
+          "200": {
+            description: "Personal rank",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            rank: { type: "integer", nullable: true, example: 5 },
+                            username: { type: "string", example: "player_one" },
+                            totalViews: { type: "integer", example: 145000 },
+                            videoCount: { type: "integer", example: 3 },
+                            message: { type: "string", nullable: true },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    // ── Admin — single user ops ───────────────────────────────────────────────
+    "/api/admin/users/{id}": {
+      get: {
+        tags: ["Admin"],
+        summary: "Get single user with stats",
+        description: "Returns full profile + video stats for a specific user.",
+        security: [{ cookieAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" }, description: "User CUID" },
+        ],
+        responses: {
+          "200": {
+            description: "User detail",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/AdminUser" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not an admin", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "404": { description: "User not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+      delete: {
+        tags: ["Admin"],
+        summary: "Delete user",
+        description: "Permanently deletes a user and **all their videos**. This action is irreversible.",
+        security: [{ cookieAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" }, description: "User CUID" },
+        ],
+        responses: {
+          "200": {
+            description: "User deleted",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { type: "object", properties: { message: { type: "string" } } } } },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not an admin", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "404": { description: "User not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/admin/users/{id}/role": {
+      put: {
+        tags: ["Admin"],
+        summary: "Update user role",
+        description: "Promotes or demotes a user between `user` and `admin` roles.",
+        security: [{ cookieAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" }, description: "User CUID" },
+        ],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateRoleRequest" } } },
+        },
+        responses: {
+          "200": {
+            description: "Role updated",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            username: { type: "string" },
+                            email: { type: "string" },
+                            role: { type: "string", enum: ["user", "admin"] },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Validation error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not an admin", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "404": { description: "User not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
         },
       },
     },
