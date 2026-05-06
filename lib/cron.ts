@@ -32,7 +32,7 @@ export async function runViewUpdate(): Promise<{
 }
 
 export function startCron() {
-  cron.schedule("0 */6 * * *", async () => {
+  cron.schedule("0 0 * * *", async () => {
     console.log("[cron] Starting view update...");
     const result = await runViewUpdate();
     console.log("[cron] Done:", result);
