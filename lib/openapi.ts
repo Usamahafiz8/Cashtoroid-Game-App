@@ -378,7 +378,7 @@ const spec: OpenAPIV3.Document = {
                   email: { type: "string", format: "email" },
                   password: { type: "string" },
                   csrfToken: { type: "string", description: "Token from GET /api/auth/csrf" },
-                  callbackUrl: { type: "string", example: "http://localhost:3000" },
+                  callbackUrl: { type: "string", example: "https://reward-app-one.vercel.app" },
                 },
               },
             },
