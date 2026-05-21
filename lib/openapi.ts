@@ -14,10 +14,8 @@ const spec: OpenAPIV3.Document = {
       email: "admin@cashtoroid.com",
     },
   },
-  servers: [
-    { url: "http://localhost:3000", description: "Local development" },
-    { url: "https://your-domain.vercel.app", description: "Production" },
-  ],
+  // servers is injected dynamically by /api/docs based on the request host
+  servers: [],
 
   // ─── Shared security scheme ───────────────────────────────────────────────
   components: {
