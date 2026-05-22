@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getAuthUser } from "@/lib/get-auth-user";
 import { prisma } from "@/lib/prisma";
 import { updateVideoSchema } from "@/lib/validators";
 
@@ -7,14 +7,14 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const authUser = await getAuthUser();
+    if (!authUser) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
-    const userId = (session.user as { id?: string }).id!;
-    const role = (session.user as { role?: string }).role;
+    const userId = authUser.id;
+    const role = authUser.role;
 
     const video = await prisma.video.findUnique({
       where: { id },
@@ -41,14 +41,14 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const authUser = await getAuthUser();
+    if (!authUser) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
-    const userId = (session.user as { id?: string }).id!;
-    const role = (session.user as { role?: string }).role;
+    const userId = authUser.id;
+    const role = authUser.role;
 
     const body = await req.json();
     const parsed = updateVideoSchema.safeParse(body);
@@ -94,14 +94,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const authUser = await getAuthUser();
+    if (!authUser) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
-    const userId = (session.user as { id?: string }).id!;
-    const role = (session.user as { role?: string }).role;
+    const userId = authUser.id;
+    const role = authUser.role;
 
     const video = await prisma.video.findUnique({ where: { id } });
     if (!video) {

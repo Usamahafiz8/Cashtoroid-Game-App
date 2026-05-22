@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { SignJWT } from "jose";
 import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validators";
 
@@ -25,16 +26,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET ?? "");
+    const token = await new SignJWT({ id: user.id, email: user.email, username: user.username, role: user.role })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("30d")
+      .sign(secret);
+
     return NextResponse.json({
       success: true,
       data: {
+        token,
         id: user.id,
         username: user.username,
         email: user.email,
         role: user.role,
-        message:
-          "Credentials valid. To establish a browser session POST to " +
-          "/api/auth/callback/credentials with email, password, csrfToken, and callbackUrl.",
       },
     });
   } catch (err) {

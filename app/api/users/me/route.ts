@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getAuthUser } from "@/lib/get-auth-user";
 import { prisma } from "@/lib/prisma";
 import { updateProfileSchema } from "@/lib/validators";
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const authUser = await getAuthUser();
+    if (!authUser) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = (session.user as { id?: string }).id!;
+    const userId = authUser.id;
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -41,12 +41,12 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const authUser = await getAuthUser();
+    if (!authUser) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = (session.user as { id?: string }).id!;
+    const userId = authUser.id;
     const body = await req.json();
     const parsed = updateProfileSchema.safeParse(body);
 

@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { auth } from "@/lib/auth";
+import { getAuthUser } from "@/lib/get-auth-user";
 import { prisma } from "@/lib/prisma";
 import { changePasswordSchema } from "@/lib/validators";
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const authUser = await getAuthUser();
+    if (!authUser) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = (session.user as { id?: string }).id!;
+    const userId = authUser.id;
     const body = await req.json();
     const parsed = changePasswordSchema.safeParse(body);
 

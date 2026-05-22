@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getAuthUser } from "@/lib/get-auth-user";
 import { prisma } from "@/lib/prisma";
 import { videoSubmitSchema } from "@/lib/validators";
 
@@ -11,12 +11,12 @@ const platformPatterns: Record<string, RegExp> = {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const user = await getAuthUser();
+    if (!user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = (session.user as { id?: string }).id!;
+    const userId = user.id;
     const body = await req.json();
     const parsed = videoSubmitSchema.safeParse(body);
 

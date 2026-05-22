@@ -1,27 +1,31 @@
 import { NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/get-auth-user";
 import { auth } from "@/lib/auth";
 import { cookies } from "next/headers";
 
 export async function POST() {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const user = await getAuthUser();
+    if (!user) {
       return NextResponse.json(
         { success: false, error: "Not logged in" },
         { status: 401 }
       );
     }
 
-    const cookieStore = await cookies();
-    // Clear all NextAuth session cookies
-    for (const name of [
-      "authjs.session-token",
-      "__Secure-authjs.session-token",
-      "authjs.csrf-token",
-      "__Host-authjs.csrf-token",
-      "authjs.callback-url",
-    ]) {
-      cookieStore.delete(name);
+    // Clear NextAuth cookies if a cookie session exists (no-op for Bearer token clients)
+    const session = await auth();
+    if (session) {
+      const cookieStore = await cookies();
+      for (const name of [
+        "authjs.session-token",
+        "__Secure-authjs.session-token",
+        "authjs.csrf-token",
+        "__Host-authjs.csrf-token",
+        "authjs.callback-url",
+      ]) {
+        cookieStore.delete(name);
+      }
     }
 
     return NextResponse.json({

@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getAuthUser } from "@/lib/get-auth-user";
 import { calculateLeaderboard } from "@/lib/leaderboard";
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user) {
+    const user = await getAuthUser();
+    if (!user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = (session.user as { id?: string }).id!;
+    const userId = user.id;
     const leaderboard = await calculateLeaderboard();
     const entry = leaderboard.find((e) => e.userId === userId);
 
