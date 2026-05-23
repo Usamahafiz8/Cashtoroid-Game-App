@@ -20,6 +20,13 @@ const spec: OpenAPIV3.Document = {
   // ─── Shared security scheme ───────────────────────────────────────────────
   components: {
     securitySchemes: {
+      bearerAuth: {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+        description:
+          "JWT obtained from POST /api/auth/login → data.token. Click Authorize and paste the token.",
+      },
       cookieAuth: {
         type: "apiKey",
         in: "cookie",
@@ -398,7 +405,7 @@ const spec: OpenAPIV3.Document = {
         tags: ["Auth"],
         summary: "Get current session",
         description: "Returns the current user session. Returns `null` if not logged in.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         responses: {
           "200": {
             description: "Session object or null",
@@ -475,7 +482,7 @@ const spec: OpenAPIV3.Document = {
           "- YouTube: `https://www.youtube.com/watch?v=...` or `https://youtu.be/...`\n" +
           "- TikTok: `https://www.tiktok.com/...`\n" +
           "- Instagram: `https://www.instagram.com/reel/...` or `/p/...`",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         requestBody: {
           required: true,
           content: {
@@ -521,7 +528,7 @@ const spec: OpenAPIV3.Document = {
         tags: ["Videos"],
         summary: "Get my submitted videos",
         description: "Returns all videos submitted by the currently authenticated user, newest first.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         responses: {
           "200": {
             description: "List of the user's videos",
@@ -553,7 +560,7 @@ const spec: OpenAPIV3.Document = {
         tags: ["Admin"],
         summary: "List all videos (filterable)",
         description: "Returns all submitted videos with user info. Filter by `status` and/or `platform`.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         parameters: [
           {
             name: "status",
@@ -601,7 +608,7 @@ const spec: OpenAPIV3.Document = {
         description:
           "Updates a video's moderation status. When rejecting, you can optionally provide a `flagReason` " +
           "to flag the video and explain why. An email notification is sent to the video owner.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         requestBody: {
           required: true,
           content: {
@@ -646,7 +653,7 @@ const spec: OpenAPIV3.Document = {
         description:
           "Returns all registered users with their video counts and total approved view counts. " +
           "Sorted by total views descending.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         responses: {
           "200": {
             description: "List of users with stats",
@@ -680,7 +687,7 @@ const spec: OpenAPIV3.Document = {
         description:
           "Returns the top N users from the leaderboard enriched with payout info " +
           "(email, payoutInfo, isPaid). Used for manual disbursement.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         parameters: [
           {
             name: "limit",
@@ -722,7 +729,7 @@ const spec: OpenAPIV3.Document = {
         description:
           "Sets `isPaid = true` and records `paidAt` timestamp for the specified user. " +
           "A payout confirmation email is sent to the user.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         requestBody: {
           required: true,
           content: {
@@ -767,7 +774,7 @@ const spec: OpenAPIV3.Document = {
         description:
           "Directly sets `currentViews` for a video. Used as the fallback for TikTok and Instagram " +
           "videos where automated scraping fails. Also updates `lastCheckedAt`.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         requestBody: {
           required: true,
           content: {
@@ -813,7 +820,7 @@ const spec: OpenAPIV3.Document = {
         description:
           "Re-runs the view update for all approved videos (same logic as the cron job) " +
           "and returns the updated top-10 leaderboard.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         responses: {
           "200": {
             description: "Recalculation complete",
@@ -926,11 +933,11 @@ const spec: OpenAPIV3.Document = {
                         data: {
                           type: "object",
                           properties: {
+                            token: { type: "string", description: "JWT — use as Authorization: Bearer <token>" },
                             id: { type: "string" },
                             username: { type: "string" },
                             email: { type: "string" },
                             role: { type: "string", enum: ["user", "admin"] },
-                            message: { type: "string" },
                           },
                         },
                       },
@@ -952,7 +959,7 @@ const spec: OpenAPIV3.Document = {
         tags: ["Auth"],
         summary: "Log out (clear session cookies)",
         description: "Clears all NextAuth session cookies for the current browser session. Requires an active session.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         responses: {
           "200": {
             description: "Logged out",
@@ -978,7 +985,7 @@ const spec: OpenAPIV3.Document = {
         tags: ["Auth"],
         summary: "Change password",
         description: "Updates the authenticated user's password. Requires the current password for verification.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         requestBody: {
           required: true,
           content: { "application/json": { schema: { $ref: "#/components/schemas/ChangePasswordRequest" } } },
@@ -1074,7 +1081,7 @@ const spec: OpenAPIV3.Document = {
         tags: ["Profile"],
         summary: "Get own profile",
         description: "Returns the full profile of the currently authenticated user including payoutInfo and payment status.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         responses: {
           "200": {
             description: "User profile",
@@ -1100,7 +1107,7 @@ const spec: OpenAPIV3.Document = {
           "Updates the authenticated user's username, email, and/or payout info. " +
           "All fields are optional — only provided fields are updated. " +
           "Username and email are checked for uniqueness.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         requestBody: {
           required: true,
           content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateProfileRequest" } } },
@@ -1132,7 +1139,7 @@ const spec: OpenAPIV3.Document = {
         tags: ["Profile"],
         summary: "Get own stats",
         description: "Returns the authenticated user's video counts by status, total view count across approved videos, and current leaderboard rank.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         responses: {
           "200": {
             description: "User stats",
@@ -1159,7 +1166,7 @@ const spec: OpenAPIV3.Document = {
         tags: ["Videos"],
         summary: "Get a single video",
         description: "Returns full details for one video. Users can only fetch their own videos; admins can fetch any.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         parameters: [
           { name: "id", in: "path", required: true, schema: { type: "string" }, description: "Video CUID" },
         ],
@@ -1187,7 +1194,7 @@ const spec: OpenAPIV3.Document = {
         tags: ["Videos"],
         summary: "Edit video title",
         description: "Updates a video's title. Users can only edit their own **pending** videos; admins can edit any video.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         parameters: [
           { name: "id", in: "path", required: true, schema: { type: "string" }, description: "Video CUID" },
         ],
@@ -1220,7 +1227,7 @@ const spec: OpenAPIV3.Document = {
         tags: ["Videos"],
         summary: "Delete a video",
         description: "Deletes a video permanently. Users can only delete their own **pending** videos; admins can delete any video.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         parameters: [
           { name: "id", in: "path", required: true, schema: { type: "string" }, description: "Video CUID" },
         ],
@@ -1255,7 +1262,7 @@ const spec: OpenAPIV3.Document = {
         description:
           "Returns the authenticated user's current rank, total views, and video count. " +
           "If the user has no approved videos, rank is `null`.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         responses: {
           "200": {
             description: "Personal rank",
@@ -1296,7 +1303,7 @@ const spec: OpenAPIV3.Document = {
         tags: ["Admin"],
         summary: "Get single user with stats",
         description: "Returns full profile + video stats for a specific user.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         parameters: [
           { name: "id", in: "path", required: true, schema: { type: "string" }, description: "User CUID" },
         ],
@@ -1324,7 +1331,7 @@ const spec: OpenAPIV3.Document = {
         tags: ["Admin"],
         summary: "Delete user",
         description: "Permanently deletes a user and **all their videos**. This action is irreversible.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         parameters: [
           { name: "id", in: "path", required: true, schema: { type: "string" }, description: "User CUID" },
         ],
@@ -1355,7 +1362,7 @@ const spec: OpenAPIV3.Document = {
         tags: ["Admin"],
         summary: "Update user role",
         description: "Promotes or demotes a user between `user` and `admin` roles.",
-        security: [{ cookieAuth: [] }],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         parameters: [
           { name: "id", in: "path", required: true, schema: { type: "string" }, description: "User CUID" },
         ],
