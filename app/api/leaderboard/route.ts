@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { calculateLeaderboard } from "@/lib/leaderboard";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const leaderboard = await calculateLeaderboard();
