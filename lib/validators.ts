@@ -20,6 +20,11 @@ export const resetPasswordSchema = z.object({
   newPassword: z.string().min(6).max(100),
 });
 
+export const verifyOtpSchema = z.object({
+  email: z.string().email(),
+  otp: z.string().length(6).regex(/^\d{6}$/, "OTP must be 6 digits"),
+});
+
 export const updateProfileSchema = z.object({
   username: z
     .string()
