@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       .setIssuedAt()
       .sign(secret);
 
-    const baseUrl = process.env.NEXTAUTH_URL ?? "https://cashtoroid-game-app-4gcq.vercel.app";
+    const baseUrl = process.env.NEXTAUTH_URL ?? "https://reward-app-one.vercel.app";
     const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
     try {
