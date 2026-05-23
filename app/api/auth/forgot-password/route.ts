@@ -41,11 +41,15 @@ export async function POST(req: NextRequest) {
     const baseUrl = process.env.NEXTAUTH_URL ?? "https://cashtoroid-game-app-4gcq.vercel.app";
     const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
-    sendPasswordResetEmail({
-      to: user.email,
-      username: user.username,
-      resetUrl,
-    }).catch(() => {});
+    try {
+      await sendPasswordResetEmail({
+        to: user.email,
+        username: user.username,
+        resetUrl,
+      });
+    } catch (emailErr) {
+      console.error("[auth/forgot-password] Email send failed:", emailErr);
+    }
 
     return NextResponse.json({
       success: true,

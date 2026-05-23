@@ -31,7 +31,6 @@ export async function POST(req: NextRequest) {
       data: { isPaid: true, paidAt: new Date() },
     });
 
-    // Non-blocking email notification
     calculateLeaderboard()
       .then((lb) => {
         const entry = lb.find((e) => e.userId === userId);
@@ -42,7 +41,7 @@ export async function POST(req: NextRequest) {
           rank: entry?.rank ?? 0,
         });
       })
-      .catch(() => {});
+      .catch((e) => console.error("[admin/mark-paid] Email failed:", e));
 
     return NextResponse.json({ success: true, data: { message: "Marked as paid" } });
   } catch (err) {

@@ -35,14 +35,13 @@ export async function POST(req: NextRequest) {
       data: { status, isFlagged, flagReason: flagReason ?? null },
     });
 
-    // Non-blocking email notification
     sendVideoStatusEmail({
       to: video.user.email,
       username: video.user.username,
       videoTitle: video.title ?? video.url,
       status,
       flagReason,
-    }).catch(() => {});
+    }).catch((e) => console.error("[admin/update-status] Email failed:", e));
 
     return NextResponse.json({ success: true, data: { message: "Status updated" } });
   } catch (err) {

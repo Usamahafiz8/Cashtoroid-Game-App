@@ -22,15 +22,11 @@ export async function sendEmail(opts: {
     return;
   }
 
-  try {
-    const transport = createTransport();
-    await transport.sendMail({
-      from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
-      ...opts,
-    });
-  } catch (err) {
-    console.error("[email] Failed to send:", err);
-  }
+  const transport = createTransport();
+  await transport.sendMail({
+    from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
+    ...opts,
+  });
 }
 
 export async function sendVideoStatusEmail(opts: {
