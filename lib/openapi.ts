@@ -234,6 +234,14 @@ const spec: OpenAPIV3.Document = {
           newPassword: { type: "string", minLength: 6, example: "newpass456" },
         },
       },
+      VerifyOtpRequest: {
+        type: "object",
+        required: ["email", "otp"],
+        properties: {
+          email: { type: "string", format: "email", example: "player@example.com" },
+          otp: { type: "string", example: "482910", description: "6-digit OTP from the email" },
+        },
+      },
 
       // ── Profile ───────────────────────────────────────────────────────────────
       UserProfile: {
@@ -1039,6 +1047,41 @@ const spec: OpenAPIV3.Document = {
             },
           },
           "400": { description: "Validation error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/auth/verify-otp": {
+      post: {
+        tags: ["Auth"],
+        summary: "Verify password reset OTP",
+        description:
+          "Checks that the 6-digit OTP matches the one stored for the given email and has not expired. " +
+          "**Does not clear the OTP** — call this before the reset-password step to validate the code in the UI. " +
+          "After a successful response, proceed to `POST /api/auth/reset-password` with the same email + OTP.",
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/VerifyOtpRequest" } } },
+        },
+        responses: {
+          "200": {
+            description: "OTP is valid",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { type: "object", properties: { message: { type: "string", example: "OTP verified successfully." } } } } },
+                  ],
+                },
+              },
+            },
+          },
+          "400": {
+            description: "No account found / OTP not requested / OTP expired / Incorrect OTP",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
           "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
         },
       },
