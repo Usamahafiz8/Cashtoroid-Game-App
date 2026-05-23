@@ -227,9 +227,10 @@ const spec: OpenAPIV3.Document = {
       },
       ResetPasswordRequest: {
         type: "object",
-        required: ["token", "newPassword"],
+        required: ["email", "otp", "newPassword"],
         properties: {
-          token: { type: "string", description: "JWT reset token from the email link" },
+          email: { type: "string", format: "email", example: "player@example.com" },
+          otp: { type: "string", example: "482910", description: "6-digit OTP from the email" },
           newPassword: { type: "string", minLength: 6, example: "newpass456" },
         },
       },
@@ -1014,11 +1015,11 @@ const spec: OpenAPIV3.Document = {
     "/api/auth/forgot-password": {
       post: {
         tags: ["Auth"],
-        summary: "Request password reset email",
+        summary: "Request password reset OTP",
         description:
-          "Sends a password-reset link to the given email address if it belongs to a registered user. " +
+          "Sends a 6-digit OTP to the given email if it belongs to a registered user. " +
           "Always returns success to prevent email enumeration. " +
-          "The link contains a signed JWT that expires in **1 hour** and is automatically invalidated once the password is changed.",
+          "The OTP expires in **15 minutes** and is cleared after a successful reset.",
         requestBody: {
           required: true,
           content: { "application/json": { schema: { $ref: "#/components/schemas/ForgotPasswordRequest" } } },
@@ -1046,11 +1047,11 @@ const spec: OpenAPIV3.Document = {
     "/api/auth/reset-password": {
       post: {
         tags: ["Auth"],
-        summary: "Reset password with token",
+        summary: "Reset password with OTP",
         description:
-          "Accepts the JWT token from the reset email and a new password. " +
-          "The token is validated and the password is updated. " +
-          "The token is single-use — once the password changes, the old token is invalidated.",
+          "Accepts the email, the 6-digit OTP from the email, and a new password. " +
+          "The OTP is verified and the password is updated. " +
+          "The OTP is cleared after use and cannot be reused.",
         requestBody: {
           required: true,
           content: { "application/json": { schema: { $ref: "#/components/schemas/ResetPasswordRequest" } } },

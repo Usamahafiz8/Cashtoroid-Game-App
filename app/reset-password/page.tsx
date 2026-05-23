@@ -1,108 +1,172 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 
-function ResetPasswordForm() {
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token") ?? "";
+type Step = "email" | "otp" | "success";
 
+export default function ResetPasswordPage() {
+  const [step, setStep] = useState<Step>("email");
+  const [email, setEmail] = useState("");
+  const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function requestOtp(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStep("otp");
+      } else {
+        setError(data.error ?? "Something went wrong.");
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function resetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
 
     if (newPassword.length < 6) {
-      setStatus("error");
-      setMessage("Password must be at least 6 characters.");
+      setError("Password must be at least 6 characters.");
       return;
     }
     if (newPassword !== confirm) {
-      setStatus("error");
-      setMessage("Passwords do not match.");
+      setError("Passwords do not match.");
       return;
     }
 
-    setStatus("loading");
+    setLoading(true);
     try {
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, newPassword }),
+        body: JSON.stringify({ email, otp, newPassword }),
       });
       const data = await res.json();
       if (data.success) {
-        setStatus("success");
-        setMessage(data.data.message);
+        setStep("success");
       } else {
-        setStatus("error");
-        setMessage(data.error ?? "Something went wrong.");
+        setError(data.error ?? "Something went wrong.");
       }
     } catch {
-      setStatus("error");
-      setMessage("Network error. Please try again.");
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
-    <div style={styles.card}>
-      <h1 style={styles.title}>Reset Password</h1>
-      <p style={styles.subtitle}>Enter your new password below.</p>
-
-      {status === "success" ? (
-        <div style={styles.successBox}>
-          <p style={{ margin: 0 }}>{message}</p>
-          <a href="/" style={styles.link}>Back to home</a>
+    <div style={s.page}>
+      <div style={s.card}>
+        <div style={s.header}>
+          <h1 style={s.title}>Cashtoroid</h1>
         </div>
-      ) : (
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <label style={styles.label}>New Password</label>
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="Min. 6 characters"
-            required
-            style={styles.input}
-          />
 
-          <label style={styles.label}>Confirm Password</label>
-          <input
-            type="password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Repeat new password"
-            required
-            style={styles.input}
-          />
+        {step === "email" && (
+          <>
+            <h2 style={s.heading}>Forgot Password</h2>
+            <p style={s.sub}>Enter your email and we'll send you a 6-digit OTP.</p>
+            <form onSubmit={requestOtp} style={s.form}>
+              <label style={s.label}>Email address</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                required
+                style={s.input}
+              />
+              {error && <p style={s.error}>{error}</p>}
+              <button type="submit" disabled={loading} style={s.btn}>
+                {loading ? "Sending OTP…" : "Send OTP"}
+              </button>
+            </form>
+          </>
+        )}
 
-          {status === "error" && (
-            <p style={styles.errorText}>{message}</p>
-          )}
+        {step === "otp" && (
+          <>
+            <h2 style={s.heading}>Enter OTP</h2>
+            <p style={s.sub}>
+              A 6-digit code was sent to <strong>{email}</strong>. It expires in 15 minutes.
+            </p>
+            <form onSubmit={resetPassword} style={s.form}>
+              <label style={s.label}>OTP Code</label>
+              <input
+                type="text"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="123456"
+                required
+                maxLength={6}
+                style={{ ...s.input, letterSpacing: "8px", fontSize: "1.4rem", textAlign: "center" }}
+              />
 
-          <button type="submit" disabled={status === "loading"} style={styles.button}>
-            {status === "loading" ? "Resetting…" : "Reset Password"}
-          </button>
-        </form>
-      )}
+              <label style={s.label}>New Password</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Min. 6 characters"
+                required
+                style={s.input}
+              />
+
+              <label style={s.label}>Confirm Password</label>
+              <input
+                type="password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="Repeat new password"
+                required
+                style={s.input}
+              />
+
+              {error && <p style={s.error}>{error}</p>}
+
+              <button type="submit" disabled={loading} style={s.btn}>
+                {loading ? "Resetting…" : "Reset Password"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setStep("email"); setError(""); setOtp(""); }}
+                style={s.ghost}
+              >
+                Didn't receive code? Go back
+              </button>
+            </form>
+          </>
+        )}
+
+        {step === "success" && (
+          <div style={s.successBox}>
+            <div style={s.checkmark}>✓</div>
+            <h2 style={{ ...s.heading, color: "#166534" }}>Password Reset!</h2>
+            <p style={s.sub}>Your password has been updated. You can now log in.</p>
+            <a href="/" style={s.btn}>Back to Home</a>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-export default function ResetPasswordPage() {
-  return (
-    <div style={styles.page}>
-      <Suspense fallback={<div style={styles.card}><p>Loading…</p></div>}>
-        <ResetPasswordForm />
-      </Suspense>
-    </div>
-  );
-}
-
-const styles: Record<string, React.CSSProperties> = {
+const s: Record<string, React.CSSProperties> = {
   page: {
     minHeight: "100vh",
     display: "flex",
@@ -114,70 +178,101 @@ const styles: Record<string, React.CSSProperties> = {
   },
   card: {
     background: "#fff",
-    borderRadius: "12px",
-    padding: "40px",
+    borderRadius: "16px",
     width: "100%",
-    maxWidth: "400px",
-    boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+    maxWidth: "420px",
+    boxShadow: "0 24px 64px rgba(0,0,0,0.35)",
+    overflow: "hidden",
+  },
+  header: {
+    background: "linear-gradient(135deg, #0f3460, #e94560)",
+    padding: "20px 32px",
   },
   title: {
-    margin: "0 0 8px",
-    fontSize: "1.6rem",
+    margin: 0,
+    color: "#fff",
+    fontSize: "1.3rem",
+    fontWeight: 800,
+    letterSpacing: "1px",
+  },
+  heading: {
+    margin: "28px 32px 6px",
+    fontSize: "1.4rem",
     fontWeight: 700,
     color: "#0f3460",
   },
-  subtitle: {
-    margin: "0 0 28px",
+  sub: {
+    margin: "0 32px 20px",
     color: "#6b7280",
-    fontSize: "0.95rem",
+    fontSize: "0.9rem",
+    lineHeight: 1.5,
   },
   form: {
     display: "flex",
     flexDirection: "column",
-    gap: "6px",
+    padding: "0 32px 32px",
+    gap: "4px",
   },
   label: {
-    fontSize: "0.85rem",
+    fontSize: "0.82rem",
     fontWeight: 600,
     color: "#374151",
-    marginTop: "12px",
+    marginTop: "14px",
   },
   input: {
-    padding: "10px 14px",
+    padding: "11px 14px",
     borderRadius: "8px",
-    border: "1px solid #d1d5db",
+    border: "1.5px solid #d1d5db",
     fontSize: "1rem",
     outline: "none",
+    marginTop: "4px",
   },
-  button: {
-    marginTop: "20px",
-    padding: "12px",
+  btn: {
+    marginTop: "22px",
+    padding: "13px",
     background: "#e94560",
     color: "#fff",
     border: "none",
     borderRadius: "8px",
     fontSize: "1rem",
-    fontWeight: 600,
+    fontWeight: 700,
     cursor: "pointer",
+    textDecoration: "none",
+    textAlign: "center",
+    display: "block",
   },
-  errorText: {
+  ghost: {
+    marginTop: "10px",
+    padding: "10px",
+    background: "transparent",
+    color: "#6b7280",
+    border: "none",
+    fontSize: "0.85rem",
+    cursor: "pointer",
+    textAlign: "center",
+  },
+  error: {
     color: "#dc2626",
-    fontSize: "0.875rem",
+    fontSize: "0.85rem",
     margin: "8px 0 0",
+    background: "#fef2f2",
+    padding: "8px 12px",
+    borderRadius: "6px",
   },
   successBox: {
-    background: "#f0fdf4",
-    border: "1px solid #86efac",
-    borderRadius: "8px",
-    padding: "16px",
-    color: "#166534",
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
+    padding: "32px",
+    textAlign: "center",
   },
-  link: {
-    color: "#0f3460",
-    fontWeight: 600,
-    fontSize: "0.9rem",
+  checkmark: {
+    width: "60px",
+    height: "60px",
+    background: "#dcfce7",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "1.8rem",
+    color: "#16a34a",
+    margin: "0 auto 16px",
   },
 };

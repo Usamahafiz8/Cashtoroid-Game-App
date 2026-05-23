@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SignJWT } from "jose";
 import { prisma } from "@/lib/prisma";
 import { forgotPasswordSchema } from "@/lib/validators";
-import { sendPasswordResetEmail } from "@/lib/email";
+import { sendOtpEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,37 +22,28 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({
         success: true,
-        data: { message: "If that email is registered you will receive a reset link shortly." },
+        data: { message: "If that email is registered, you will receive an OTP shortly." },
       });
     }
 
-    // Sign with NEXTAUTH_SECRET + current password hash so token invalidates after reset
-    const secret = new TextEncoder().encode(
-      (process.env.NEXTAUTH_SECRET ?? "") + user.password
-    );
+    // Generate 6-digit OTP, expires in 15 minutes
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const otpExpiry = new Date(Date.now() + 15 * 60 * 1000);
 
-    const token = await new SignJWT({ sub: user.id })
-      .setProtectedHeader({ alg: "HS256" })
-      .setExpirationTime("1h")
-      .setIssuedAt()
-      .sign(secret);
-
-    const baseUrl = process.env.NEXTAUTH_URL ?? "https://reward-app-one.vercel.app";
-    const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { resetOtp: otp, resetOtpExpiry: otpExpiry },
+    });
 
     try {
-      await sendPasswordResetEmail({
-        to: user.email,
-        username: user.username,
-        resetUrl,
-      });
+      await sendOtpEmail({ to: user.email, username: user.username, otp });
     } catch (emailErr) {
       console.error("[auth/forgot-password] Email send failed:", emailErr);
     }
 
     return NextResponse.json({
       success: true,
-      data: { message: "If that email is registered you will receive a reset link shortly." },
+      data: { message: "If that email is registered, you will receive an OTP shortly." },
     });
   } catch (err) {
     console.error("[auth/forgot-password]", err);
