@@ -1,0 +1,536 @@
+{
+  "info": {
+    "_postman_id": "cashtoroid-api-collection",
+    "name": "Cashtoroid API",
+    "description": "Complete API collection for Cashtoroid — Content Rewards System.\n\n**Setup:**\n1. Set the `base_url` variable to your server (e.g. `https://reward-app-one.vercel.app` or `http://localhost:3000`)\n2. Call **Auth → REST Login** to get a JWT token\n3. The token is saved automatically to the `token` variable via the test script\n4. All authenticated requests use `Authorization: Bearer {{token}}`\n\n**Password Reset Flow:**\n1. POST /api/auth/forgot-password  → sends OTP to email\n2. POST /api/auth/verify-otp      → confirm OTP is correct\n3. POST /api/auth/reset-password  → set new password",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://reward-app-one.vercel.app",
+      "type": "string",
+      "description": "Base URL of your Cashtoroid server"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "JWT — auto-filled after REST Login"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Registration, login, logout, and password management",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/register", "host": ["{{base_url}}"], "path": ["api", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"player_one\",\n  \"email\": \"player@example.com\",\n  \"password\": \"securepass123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Creates a new user account. Username must be 3-20 alphanumeric/underscore characters."
+          },
+          "response": []
+        },
+        {
+          "name": "Get CSRF Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/auth/csrf", "host": ["{{base_url}}"], "path": ["api", "auth", "csrf"] },
+            "description": "Step 1 of browser sign-in. Returns a CSRF token and sets the authjs.csrf-token cookie. Required before POST /api/auth/callback/credentials."
+          },
+          "response": []
+        },
+        {
+          "name": "Sign In (Browser/Cookie)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "url": { "raw": "{{base_url}}/api/auth/callback/credentials", "host": ["{{base_url}}"], "path": ["api", "auth", "callback", "credentials"] },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "email", "value": "player@example.com" },
+                { "key": "password", "value": "securepass123" },
+                { "key": "csrfToken", "value": "PASTE_TOKEN_FROM_CSRF_ENDPOINT" },
+                { "key": "callbackUrl", "value": "{{base_url}}" }
+              ]
+            },
+            "description": "Step 2 of browser sign-in. Submit credentials + CSRF token. Sets authjs.session-token cookie on success (HTTP 302 redirect)."
+          },
+          "response": []
+        },
+        {
+          "name": "REST Login (get JWT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.success && json.data && json.data.token) {",
+                  "    pm.collectionVariables.set('token', json.data.token);",
+                  "    console.log('Token saved:', json.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api", "auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"player@example.com\",\n  \"password\": \"securepass123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Returns a JWT token in data.token. The test script auto-saves it to the {{token}} variable so all subsequent requests are authenticated."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Session",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/auth/session", "host": ["{{base_url}}"], "path": ["api", "auth", "session"] },
+            "description": "Returns the current session object. Returns null if not logged in."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/auth/logout", "host": ["{{base_url}}"], "path": ["api", "auth", "logout"] },
+            "description": "Clears all NextAuth session cookies for the current browser session."
+          },
+          "response": []
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/change-password", "host": ["{{base_url}}"], "path": ["api", "auth", "change-password"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"oldpass123\",\n  \"newPassword\": \"newpass456\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Updates the authenticated user's password. Requires the current password."
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password (Request OTP)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/forgot-password", "host": ["{{base_url}}"], "path": ["api", "auth", "forgot-password"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"player@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Sends a 6-digit OTP to the given email if registered. Always returns 200 to prevent email enumeration. OTP expires in 15 minutes.\n\n**Step 1 of password reset flow.**"
+          },
+          "response": []
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/verify-otp", "host": ["{{base_url}}"], "path": ["api", "auth", "verify-otp"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"player@example.com\",\n  \"otp\": \"482910\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Verifies the 6-digit OTP without consuming it. Use this to confirm the OTP is correct before showing the new-password form.\n\n**Step 2 of password reset flow.**\n\nPossible 400 errors:\n- `No account found with this email`\n- `No OTP was requested for this account. Please request a password reset first.`\n- `OTP has expired. Please request a new one.`\n- `Incorrect OTP`"
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/reset-password", "host": ["{{base_url}}"], "path": ["api", "auth", "reset-password"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"player@example.com\",\n  \"otp\": \"482910\",\n  \"newPassword\": \"newpass456\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Accepts email + OTP + new password. Verifies the OTP, updates the password, and clears the OTP so it cannot be reused.\n\n**Step 3 of password reset flow.**"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "description": "Authenticated user's own profile and stats",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/users/me", "host": ["{{base_url}}"], "path": ["api", "users", "me"] },
+            "description": "Returns the full profile of the currently authenticated user including payoutInfo and payment status."
+          },
+          "response": []
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/users/me", "host": ["{{base_url}}"], "path": ["api", "users", "me"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"new_username\",\n  \"email\": \"new@example.com\",\n  \"payoutInfo\": \"{\\\"method\\\":\\\"PayPal\\\",\\\"accountNumber\\\":\\\"user@paypal.com\\\",\\\"name\\\":\\\"John Doe\\\"}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Updates username, email, and/or payoutInfo. All fields are optional."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Stats",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/users/me/stats", "host": ["{{base_url}}"], "path": ["api", "users", "me", "stats"] },
+            "description": "Returns video counts by status, total views across approved videos, and current leaderboard rank."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Videos",
+      "description": "Video submission and retrieval",
+      "item": [
+        {
+          "name": "Submit Video",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/videos/submit", "host": ["{{base_url}}"], "path": ["api", "videos", "submit"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://www.youtube.com/watch?v=dQw4w9WgXcZ\",\n  \"platform\": \"youtube\",\n  \"title\": \"My epic gameplay\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Submit a YouTube, TikTok, or Instagram video URL for review. Enters pending status. Limit: 5/day. Duplicate URLs rejected.\n\nPlatforms: `youtube` | `tiktok` | `instagram`"
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Videos",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/videos/my-videos", "host": ["{{base_url}}"], "path": ["api", "videos", "my-videos"] },
+            "description": "Returns all videos submitted by the currently authenticated user, newest first."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Video by ID",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/videos/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "videos", ":id"],
+              "variable": [{ "key": "id", "value": "PASTE_VIDEO_ID_HERE", "description": "Video CUID" }]
+            },
+            "description": "Returns full details for one video. Users can only fetch their own; admins can fetch any."
+          },
+          "response": []
+        },
+        {
+          "name": "Edit Video Title",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/videos/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "videos", ":id"],
+              "variable": [{ "key": "id", "value": "PASTE_VIDEO_ID_HERE", "description": "Video CUID" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated title\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Updates a video's title. Users can only edit their own pending videos; admins can edit any."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Video",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/videos/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "videos", ":id"],
+              "variable": [{ "key": "id", "value": "PASTE_VIDEO_ID_HERE", "description": "Video CUID" }]
+            },
+            "description": "Permanently deletes a video. Users can only delete their own pending videos; admins can delete any."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Leaderboard",
+      "description": "Public leaderboard and personal rank",
+      "item": [
+        {
+          "name": "Get Public Leaderboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/leaderboard", "host": ["{{base_url}}"], "path": ["api", "leaderboard"] },
+            "description": "Returns the top 100 users ranked by total views across approved videos. No authentication required."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Rank",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/leaderboard/me", "host": ["{{base_url}}"], "path": ["api", "leaderboard", "me"] },
+            "description": "Returns the authenticated user's current rank, total views, and video count. Rank is null if no approved videos."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "description": "Admin-only operations. Requires role: admin",
+      "item": [
+        {
+          "name": "List All Videos",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/videos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "videos"],
+              "query": [
+                { "key": "status", "value": "pending", "description": "pending | approved | rejected", "disabled": true },
+                { "key": "platform", "value": "youtube", "description": "youtube | tiktok | instagram", "disabled": true }
+              ]
+            },
+            "description": "Returns all submitted videos with user info. Filter by status and/or platform using query params."
+          },
+          "response": []
+        },
+        {
+          "name": "Approve or Reject Video",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/admin/update-status", "host": ["{{base_url}}"], "path": ["api", "admin", "update-status"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"videoId\": \"PASTE_VIDEO_ID_HERE\",\n  \"status\": \"approved\",\n  \"flagReason\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Updates a video's moderation status. status: `approved` | `rejected`. Optionally provide flagReason when rejecting."
+          },
+          "response": []
+        },
+        {
+          "name": "List All Users",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/admin/users", "host": ["{{base_url}}"], "path": ["api", "admin", "users"] },
+            "description": "Returns all registered users with their video counts and total approved view counts. Sorted by total views descending."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/users/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users", ":id"],
+              "variable": [{ "key": "id", "value": "PASTE_USER_ID_HERE", "description": "User CUID" }]
+            },
+            "description": "Returns full profile + video stats for a specific user."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/users/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users", ":id"],
+              "variable": [{ "key": "id", "value": "PASTE_USER_ID_HERE", "description": "User CUID" }]
+            },
+            "description": "Permanently deletes a user and ALL their videos. This action is irreversible."
+          },
+          "response": []
+        },
+        {
+          "name": "Update User Role",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/admin/users/:id/role",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users", ":id", "role"],
+              "variable": [{ "key": "id", "value": "PASTE_USER_ID_HERE", "description": "User CUID" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"admin\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Promotes or demotes a user. role: `user` | `admin`"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payout List",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/payouts?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "payouts"],
+              "query": [{ "key": "limit", "value": "10", "description": "How many top users to return (default: 10, max: 100)" }]
+            },
+            "description": "Returns the top N users from the leaderboard enriched with payout info (email, payoutInfo, isPaid). Used for manual disbursement."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark User as Paid",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/admin/mark-paid", "host": ["{{base_url}}"], "path": ["api", "admin", "mark-paid"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"PASTE_USER_ID_HERE\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Sets isPaid = true and records paidAt timestamp. Sends a payout confirmation email to the user."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Manual Views",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/admin/manual-views", "host": ["{{base_url}}"], "path": ["api", "admin", "manual-views"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"videoId\": \"PASTE_VIDEO_ID_HERE\",\n  \"views\": 75000\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Directly sets currentViews for a video. Used as fallback for TikTok/Instagram where automated scraping fails."
+          },
+          "response": []
+        },
+        {
+          "name": "Force Recalculate Leaderboard",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/admin/recalculate", "host": ["{{base_url}}"], "path": ["api", "admin", "recalculate"] },
+            "description": "Re-runs the view update for all approved videos (same logic as the cron job) and returns the updated top-10 leaderboard."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cron",
+      "description": "Scheduled view update trigger — protected by x-cron-secret header",
+      "item": [
+        {
+          "name": "Trigger View Update",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-cron-secret", "value": "PASTE_YOUR_CRON_SECRET_HERE", "description": "Must match the CRON_SECRET env variable" }
+            ],
+            "url": { "raw": "{{base_url}}/api/cron/update-views", "host": ["{{base_url}}"], "path": ["api", "cron", "update-views"] },
+            "description": "Fetches the latest view counts for all approved videos and updates the DB. On Vercel this runs automatically every 6 hours."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
