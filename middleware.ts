@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import { authConfig } from "@/lib/auth.config";
 import { NextRequest, NextResponse } from "next/server";
+import { jwtVerify } from "jose";
 
 const { auth } = NextAuth(authConfig);
 
@@ -10,7 +11,20 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-export default auth((req: NextRequest & { auth: unknown }) => {
+async function getBearerPayload(req: NextRequest): Promise<{ role?: string } | null> {
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  try {
+    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET ?? "");
+    const { payload } = await jwtVerify(authHeader.slice(7), secret);
+    if (!payload.id) return null;
+    return { role: (payload.role as string) ?? "user" };
+  } catch {
+    return null;
+  }
+}
+
+export default auth(async (req: NextRequest & { auth: unknown }) => {
   const { pathname } = req.nextUrl;
   const headers = CORS_HEADERS;
 
@@ -21,14 +35,17 @@ export default auth((req: NextRequest & { auth: unknown }) => {
 
   const session = req.auth as { user?: { role?: string } } | null;
 
+  // Resolve the authenticated identity: NextAuth cookie session OR Bearer JWT
+  const resolvedUser = session?.user ?? (await getBearerPayload(req));
+
   if (pathname.startsWith("/api/admin")) {
-    if (!session?.user) {
+    if (!resolvedUser) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401, headers }
       );
     }
-    if (session.user.role !== "admin") {
+    if (resolvedUser.role !== "admin") {
       return NextResponse.json(
         { success: false, error: "Forbidden" },
         { status: 403, headers }
@@ -37,7 +54,7 @@ export default auth((req: NextRequest & { auth: unknown }) => {
   }
 
   if (pathname.startsWith("/api/videos")) {
-    if (!session?.user) {
+    if (!resolvedUser) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401, headers }
