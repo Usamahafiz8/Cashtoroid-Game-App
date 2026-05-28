@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/get-auth-user";
 import { prisma } from "@/lib/prisma";
+import { fetchViews } from "@/lib/scraper";
 
 export const dynamic = "force-dynamic";
+
+// Refresh approved video views if not checked within the last hour
+const REFRESH_THRESHOLD_MS = 60 * 60 * 1000;
 
 export async function GET() {
   try {
@@ -14,19 +18,41 @@ export async function GET() {
     const userId = user.id;
     const videos = await prisma.video.findMany({
       where: { userId },
-      select: {
-        id: true,
-        url: true,
-        platform: true,
-        title: true,
-        currentViews: true,
-        status: true,
-        createdAt: true,
-      },
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ success: true, data: videos });
+    const now = Date.now();
+    const refreshPromises = videos
+      .filter((v) => {
+        if (v.status !== "approved") return false;
+        if (!v.lastCheckedAt) return true;
+        return now - v.lastCheckedAt.getTime() > REFRESH_THRESHOLD_MS;
+      })
+      .map(async (v) => {
+        const views = await fetchViews(v);
+        if (views >= 0) {
+          await prisma.video.update({
+            where: { id: v.id },
+            data: { currentViews: views, lastCheckedAt: new Date() },
+          });
+          v.currentViews = views;
+          v.lastCheckedAt = new Date();
+        }
+      });
+
+    await Promise.all(refreshPromises);
+
+    const result = videos.map(({ id, url, platform, title, currentViews, status, createdAt }) => ({
+      id,
+      url,
+      platform,
+      title,
+      currentViews,
+      status,
+      createdAt,
+    }));
+
+    return NextResponse.json({ success: true, data: result });
   } catch (err) {
     console.error("[my-videos]", err);
     return NextResponse.json(
