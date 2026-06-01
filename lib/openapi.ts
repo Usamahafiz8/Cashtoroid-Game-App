@@ -873,16 +873,8 @@ const spec: OpenAPIV3.Document = {
         description:
           "Fetches the latest view counts for all approved videos and updates the database. " +
           "YouTube uses the Data API v3. TikTok and Instagram fall back to scraping (returns -1 on failure). " +
-          "Protected by the `x-cron-secret` header. On Vercel, this runs automatically every 6 hours.",
-        parameters: [
-          {
-            name: "x-cron-secret",
-            in: "header",
-            required: true,
-            schema: { type: "string" },
-            description: "Must match the `CRON_SECRET` environment variable",
-          },
-        ],
+          "Public endpoint — no authentication required. On Vercel, this runs automatically every 6 hours.",
+        parameters: [],
         responses: {
           "200": {
             description: "View update summary",
@@ -909,7 +901,6 @@ const spec: OpenAPIV3.Document = {
               },
             },
           },
-          "401": { description: "Invalid or missing cron secret", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
           "500": { description: "Server error during update", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
         },
       },
