@@ -32,6 +32,7 @@ export async function GET() {
       data: {
         rank: entry.rank,
         username: entry.username,
+        avatarUrl: entry.avatarUrl,
         totalViews: entry.totalViews,
         videoCount: entry.videoCount,
       },

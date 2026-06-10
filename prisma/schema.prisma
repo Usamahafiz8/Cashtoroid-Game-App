@@ -8,18 +8,21 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  username      String    @unique
-  email         String    @unique
-  password      String
-  role          String    @default("user")
-  payoutInfo    String?
-  isPaid        Boolean   @default(false)
-  paidAt        DateTime?
-  createdAt     DateTime  @default(now())
-  resetOtp      String?
+  id             String          @id @default(cuid())
+  username       String          @unique
+  email          String          @unique
+  password       String
+  role           String          @default("user")
+  avatarUrl      String?
+  payoutInfo     String?
+  isPaid         Boolean         @default(false)
+  paidAt         DateTime?
+  createdAt      DateTime        @default(now())
+  resetOtp       String?
   resetOtpExpiry DateTime?
-  videos        Video[]
+  videos         Video[]
+  tikTokAccounts TikTokAccount[]
+  transactions   Transaction[]
 }
 
 model Video {
@@ -30,9 +33,69 @@ model Video {
   url           String    @unique
   title         String?
   currentViews  Int       @default(0)
+  baseViews     Int       @default(0)
   lastCheckedAt DateTime?
   status        String    @default("pending")
   isFlagged     Boolean   @default(false)
   flagReason    String?
   createdAt     DateTime  @default(now())
+}
+
+model TikTokAccount {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tiktokUserId   String    @unique
+  username       String
+  displayName    String?
+  avatarUrl      String?
+  accessToken    String
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model LeaderboardConfig {
+  id          String   @id @default("singleton")
+  periodHours Int      @default(24)
+  lastResetAt DateTime @default(now())
+  nextResetAt DateTime
+  updatedAt   DateTime @updatedAt
+}
+
+model PrizePool {
+  id          String   @id @default("singleton")
+  totalAmount Float    @default(0)
+  currency    String   @default("USD")
+  tiers       Json     @default("[]")
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model Transaction {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  amount     Float
+  currency   String    @default("USD")
+  status     String    @default("pending")
+  payoutInfo String?
+  adminNote  String?
+  reviewedBy String?
+  reviewedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Challenge {
+  id          String    @id @default("singleton")
+  title       String    @default("Current Challenge")
+  description String    @default("")
+  rules       String    @default("")
+  guidelines  String?
+  isActive    Boolean   @default(true)
+  startDate   DateTime?
+  endDate     DateTime?
+  updatedAt   DateTime  @updatedAt
 }

@@ -6,9 +6,10 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const leaderboard = await calculateLeaderboard();
-    const top100 = leaderboard.slice(0, 100).map(({ rank, username, totalViews, videoCount }) => ({
+    const top100 = leaderboard.slice(0, 100).map(({ rank, username, avatarUrl, totalViews, videoCount }) => ({
       rank,
       username,
+      avatarUrl,
       totalViews,
       videoCount,
     }));

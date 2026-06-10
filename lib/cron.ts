@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { prisma } from "@/lib/prisma";
 import { fetchViews } from "@/lib/scraper";
+import { resetLeaderboard } from "@/lib/leaderboard";
 
 export async function runViewUpdate(): Promise<{
   updated: number;
@@ -31,11 +32,24 @@ export async function runViewUpdate(): Promise<{
   return { updated, failed, timestamp: new Date().toISOString() };
 }
 
+async function checkAndResetLeaderboard(): Promise<void> {
+  const config = await prisma.leaderboardConfig.findUnique({ where: { id: "singleton" } });
+  if (!config) return;
+
+  if (new Date() >= config.nextResetAt) {
+    console.log("[cron] Leaderboard reset triggered");
+    await resetLeaderboard();
+    console.log("[cron] Leaderboard reset complete");
+  }
+}
+
 export function startCron() {
   cron.schedule("0 0 * * *", async () => {
     console.log("[cron] Starting view update...");
     const result = await runViewUpdate();
     console.log("[cron] Done:", result);
+
+    await checkAndResetLeaderboard();
   });
-  console.log("[cron] Scheduled view update every 6 hours");
+  console.log("[cron] Scheduled daily view update + leaderboard reset check");
 }

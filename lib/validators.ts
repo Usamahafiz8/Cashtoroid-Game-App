@@ -74,3 +74,51 @@ export const manualViewsSchema = z.object({
 export const markPaidSchema = z.object({
   userId: z.string().cuid(),
 });
+
+// ── Leaderboard ──────────────────────────────────────────────────────────────
+export const leaderboardConfigSchema = z.object({
+  periodHours: z.number().int().min(1).max(8760),
+  triggerReset: z.boolean().optional(),
+});
+
+// ── Prize Pool ───────────────────────────────────────────────────────────────
+export const prizePoolSchema = z.object({
+  totalAmount: z.number().min(0),
+  currency: z.string().max(10).optional(),
+  tiers: z
+    .array(
+      z.object({
+        rank: z.number().int().positive(),
+        amount: z.number().min(0),
+      })
+    )
+    .optional(),
+  description: z.string().max(1000).optional().nullable(),
+});
+
+// ── Cashout ───────────────────────────────────────────────────────────────────
+export const cashoutRequestSchema = z.object({
+  amount: z.number().positive(),
+  currency: z.string().max(10).optional(),
+  payoutInfo: z.string().max(1000).optional(),
+});
+
+export const transactionReviewSchema = z.object({
+  adminNote: z.string().max(1000).optional(),
+});
+
+// ── Challenge ─────────────────────────────────────────────────────────────────
+export const challengeSchema = z.object({
+  title: z.string().min(1).max(200),
+  description: z.string().max(20000),
+  rules: z.string().max(20000),
+  guidelines: z.string().max(20000).optional().nullable(),
+  isActive: z.boolean().optional(),
+  startDate: z.string().datetime().optional().nullable(),
+  endDate: z.string().datetime().optional().nullable(),
+});
+
+// ── Avatar ────────────────────────────────────────────────────────────────────
+export const avatarSchema = z.object({
+  avatarUrl: z.string().url().max(2000),
+});

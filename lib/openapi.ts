@@ -142,6 +142,7 @@ const spec: OpenAPIV3.Document = {
         properties: {
           rank: { type: "integer", example: 1 },
           username: { type: "string", example: "player_one" },
+          avatarUrl: { type: "string", nullable: true, example: "https://cdn.example.com/avatars/wolf.png" },
           totalViews: { type: "integer", example: 250000 },
           videoCount: { type: "integer", example: 3 },
         },
@@ -293,15 +294,208 @@ const spec: OpenAPIV3.Document = {
           role: { type: "string", enum: ["user", "admin"] },
         },
       },
+
+      // ── Leaderboard timer + config ────────────────────────────────────────────
+      LeaderboardTimer: {
+        type: "object",
+        properties: {
+          secondsUntilReset: { type: "integer", example: 7940 },
+          nextResetAt: { type: "string", format: "date-time" },
+          lastResetAt: { type: "string", format: "date-time" },
+          periodHours: { type: "integer", example: 24 },
+        },
+      },
+      LeaderboardConfig: {
+        type: "object",
+        properties: {
+          id: { type: "string", example: "singleton" },
+          periodHours: { type: "integer", example: 24 },
+          lastResetAt: { type: "string", format: "date-time" },
+          nextResetAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      LeaderboardConfigRequest: {
+        type: "object",
+        required: ["periodHours"],
+        properties: {
+          periodHours: { type: "integer", minimum: 1, maximum: 8760, example: 24, description: "Hours between leaderboard resets" },
+          triggerReset: { type: "boolean", example: false, description: "Set true to immediately reset the leaderboard now" },
+        },
+      },
+
+      // ── TikTok ────────────────────────────────────────────────────────────────
+      TikTokAccount: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          tiktokUserId: { type: "string" },
+          username: { type: "string", example: "creator123" },
+          displayName: { type: "string", nullable: true },
+          avatarUrl: { type: "string", nullable: true },
+          tokenExpiresAt: { type: "string", format: "date-time", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+        },
+      },
+      TikTokVideo: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "TikTok video ID" },
+          title: { type: "string", nullable: true },
+          coverImageUrl: { type: "string", nullable: true },
+          shareUrl: { type: "string" },
+          viewCount: { type: "integer" },
+          likeCount: { type: "integer" },
+          duration: { type: "integer", description: "Duration in seconds" },
+          createTime: { type: "integer", description: "Unix timestamp" },
+          accountAvatarUrl: { type: "string", nullable: true, description: "Account profile picture to display as thumbnail" },
+          accountUsername: { type: "string" },
+          accountId: { type: "string", description: "Cashtoroid TikTok account ID" },
+        },
+      },
+      TikTokSubmitRequest: {
+        type: "object",
+        required: ["accountId"],
+        properties: {
+          accountId: { type: "string", description: "Cashtoroid TikTokAccount ID that owns this video" },
+        },
+      },
+
+      // ── Prize Pool ────────────────────────────────────────────────────────────
+      PrizeTier: {
+        type: "object",
+        required: ["rank", "amount"],
+        properties: {
+          rank: { type: "integer", example: 1 },
+          amount: { type: "number", example: 500 },
+        },
+      },
+      PrizePool: {
+        type: "object",
+        properties: {
+          id: { type: "string", example: "singleton" },
+          totalAmount: { type: "number", example: 1000 },
+          currency: { type: "string", example: "USD" },
+          tiers: { type: "array", items: { $ref: "#/components/schemas/PrizeTier" } },
+          description: { type: "string", nullable: true },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      PrizePoolRequest: {
+        type: "object",
+        required: ["totalAmount"],
+        properties: {
+          totalAmount: { type: "number", minimum: 0, example: 1000 },
+          currency: { type: "string", maxLength: 10, example: "USD" },
+          tiers: {
+            type: "array",
+            items: { $ref: "#/components/schemas/PrizeTier" },
+            example: [{ rank: 1, amount: 500 }, { rank: 2, amount: 300 }, { rank: 3, amount: 200 }],
+          },
+          description: { type: "string", nullable: true, example: "Season 1 prize pool" },
+        },
+      },
+
+      // ── Cashout / Transactions ────────────────────────────────────────────────
+      CashoutRequest: {
+        type: "object",
+        required: ["amount"],
+        properties: {
+          amount: { type: "number", minimum: 0.01, example: 50 },
+          currency: { type: "string", maxLength: 10, example: "USD" },
+          payoutInfo: { type: "string", maxLength: 1000, example: "{\"method\":\"PayPal\",\"account\":\"user@paypal.com\"}", description: "Override stored payout info for this request" },
+        },
+      },
+      Transaction: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          userId: { type: "string" },
+          amount: { type: "number" },
+          currency: { type: "string" },
+          status: { type: "string", enum: ["pending", "approved", "rejected"] },
+          payoutInfo: { type: "string", nullable: true },
+          adminNote: { type: "string", nullable: true },
+          reviewedAt: { type: "string", format: "date-time", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+        },
+      },
+      TransactionWithUser: {
+        allOf: [
+          { $ref: "#/components/schemas/Transaction" },
+          {
+            type: "object",
+            properties: {
+              user: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  username: { type: "string" },
+                  email: { type: "string" },
+                  avatarUrl: { type: "string", nullable: true },
+                },
+              },
+            },
+          },
+        ],
+      },
+      TransactionReview: {
+        type: "object",
+        properties: {
+          adminNote: { type: "string", maxLength: 1000, example: "Processed via PayPal" },
+        },
+      },
+
+      // ── Challenge ─────────────────────────────────────────────────────────────
+      Challenge: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          title: { type: "string", example: "Asteroid Challenge #1" },
+          description: { type: "string" },
+          rules: { type: "string" },
+          guidelines: { type: "string", nullable: true },
+          isActive: { type: "boolean" },
+          startDate: { type: "string", format: "date-time", nullable: true },
+          endDate: { type: "string", format: "date-time", nullable: true },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      ChallengeRequest: {
+        type: "object",
+        required: ["title", "description", "rules"],
+        properties: {
+          title: { type: "string", minLength: 1, maxLength: 200, example: "Asteroid Challenge #1" },
+          description: { type: "string", example: "Submit your best gameplay clips!" },
+          rules: { type: "string", example: "1. Must be original content\n2. Minimum 30 seconds\n3. Must include #Cashtoroid" },
+          guidelines: { type: "string", nullable: true, example: "Film in landscape mode for best results." },
+          isActive: { type: "boolean", example: true },
+          startDate: { type: "string", format: "date-time", nullable: true },
+          endDate: { type: "string", format: "date-time", nullable: true },
+        },
+      },
+
+      // ── Avatar ────────────────────────────────────────────────────────────────
+      AvatarRequest: {
+        type: "object",
+        required: ["avatarUrl"],
+        properties: {
+          avatarUrl: { type: "string", format: "uri", maxLength: 2000, example: "https://cdn.example.com/avatars/wolf.png" },
+        },
+      },
     },
   },
 
   // ─── Tags ───────────────────────────────────���───────────────���────────────
   tags: [
     { name: "Auth", description: "Registration, login, logout, and password management" },
-    { name: "Profile", description: "Authenticated user's own profile and stats" },
+    { name: "Profile", description: "Authenticated user's own profile, avatar, and stats" },
     { name: "Videos", description: "Video submission and retrieval (authenticated)" },
-    { name: "Leaderboard", description: "Public leaderboard and personal rank" },
+    { name: "Leaderboard", description: "Public leaderboard, personal rank, and reset timer" },
+    { name: "TikTok", description: "TikTok account OAuth, video list, and one-click submit" },
+    { name: "PrizePool", description: "Active prize pool configuration (public read, admin write)" },
+    { name: "Cashout", description: "User cashout requests and transaction history" },
+    { name: "Challenge", description: "Active challenge/brief screen content (public read, admin write)" },
     { name: "Admin", description: "Admin-only operations (role: admin)" },
     { name: "Cron", description: "Scheduled view update trigger" },
   ],
@@ -1437,6 +1631,726 @@ const spec: OpenAPIV3.Document = {
           "403": { description: "Not an admin", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
           "404": { description: "User not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
           "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    // ── Leaderboard — reset timer ─────────────────────────────────────────────
+    "/api/leaderboard/timer": {
+      get: {
+        tags: ["Leaderboard"],
+        summary: "Get leaderboard reset countdown",
+        description:
+          "Returns the number of seconds until the next leaderboard reset plus the server-side `nextResetAt` timestamp. " +
+          "Poll this endpoint to drive a live countdown on the app — do NOT use client-side calculation only.",
+        responses: {
+          "200": {
+            description: "Timer info",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/LeaderboardTimer" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    // ── Admin — leaderboard config ────────────────────────────────────────────
+    "/api/admin/leaderboard/config": {
+      get: {
+        tags: ["Admin"],
+        summary: "Get leaderboard period config",
+        description: "Returns the current leaderboard reset schedule (period hours, last reset, next reset).",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        responses: {
+          "200": {
+            description: "Current config",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/LeaderboardConfig" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not an admin", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+      put: {
+        tags: ["Admin"],
+        summary: "Update leaderboard period / trigger reset",
+        description:
+          "Sets the reset period (in hours). If `triggerReset: true`, the leaderboard is reset **immediately**: " +
+          "all video `baseViews` are snapped to `currentViews` so the next period starts from zero, " +
+          "and `lastResetAt` / `nextResetAt` are updated.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/LeaderboardConfigRequest" } } },
+        },
+        responses: {
+          "200": {
+            description: "Config updated",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/LeaderboardConfig" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Validation error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not an admin", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    // ── TikTok — OAuth ────────────────────────────────────────────────────────
+    "/api/tiktok/auth/url": {
+      get: {
+        tags: ["TikTok"],
+        summary: "Get TikTok OAuth URL",
+        description:
+          "Returns a TikTok authorization URL. Open this URL in a browser or webview to start the OAuth flow. " +
+          "After the user grants access, TikTok will redirect to `/api/tiktok/auth/callback`.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        responses: {
+          "200": {
+            description: "OAuth URL",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            url: { type: "string", format: "uri" },
+                            state: { type: "string" },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error (check TIKTOK_CLIENT_KEY env var)", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/tiktok/auth/callback": {
+      get: {
+        tags: ["TikTok"],
+        summary: "TikTok OAuth callback",
+        description:
+          "Handles the redirect from TikTok after the user authorizes. Exchanges the code for tokens, " +
+          "fetches the user's TikTok profile, and stores/updates the linked account. " +
+          "This URL must be registered as the redirect URI in your TikTok developer app.",
+        parameters: [
+          { name: "code", in: "query", required: true, schema: { type: "string" } },
+          { name: "state", in: "query", required: true, schema: { type: "string" } },
+          { name: "error", in: "query", schema: { type: "string" }, description: "Set by TikTok if the user denies authorization" },
+        ],
+        responses: {
+          "200": {
+            description: "Account connected",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            message: { type: "string" },
+                            accountId: { type: "string" },
+                            username: { type: "string" },
+                            displayName: { type: "string", nullable: true },
+                            avatarUrl: { type: "string", nullable: true },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Missing params or auth denied", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Token exchange failed", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    // ── TikTok — Accounts ─────────────────────────────────────────────────────
+    "/api/tiktok/accounts": {
+      get: {
+        tags: ["TikTok"],
+        summary: "List connected TikTok accounts",
+        description: "Returns all TikTok profiles the authenticated user has linked. Supports multiple accounts.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        responses: {
+          "200": {
+            description: "Account list",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { type: "array", items: { $ref: "#/components/schemas/TikTokAccount" } } } },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/tiktok/accounts/{id}": {
+      delete: {
+        tags: ["TikTok"],
+        summary: "Disconnect a TikTok account",
+        description: "Removes the linked TikTok profile. Users can only disconnect their own accounts.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" }, description: "TikTokAccount CUID" },
+        ],
+        responses: {
+          "200": {
+            description: "Disconnected",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { type: "object", properties: { message: { type: "string" } } } } },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not the account owner", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "404": { description: "Account not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/tiktok/accounts/{id}/videos": {
+      get: {
+        tags: ["TikTok"],
+        summary: "List videos from a connected TikTok account",
+        description:
+          "Fetches public videos from the linked TikTok account via TikTok API. " +
+          "Each video includes `accountAvatarUrl` to use as the thumbnail/placeholder in the video list view. " +
+          "Supports cursor-based pagination. Token is auto-refreshed if expired.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" }, description: "TikTokAccount CUID" },
+          { name: "cursor", in: "query", schema: { type: "integer", default: 0 }, description: "Pagination cursor returned by previous call" },
+        ],
+        responses: {
+          "200": {
+            description: "Video list",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            videos: { type: "array", items: { $ref: "#/components/schemas/TikTokVideo" } },
+                            cursor: { type: "integer" },
+                            hasMore: { type: "boolean" },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated or TikTok token expired", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not the account owner", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "404": { description: "Account not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/tiktok/videos/{videoId}/submit": {
+      post: {
+        tags: ["TikTok"],
+        summary: "Submit a TikTok video to the active challenge",
+        description:
+          "One-click submit a TikTok video (from a connected account) to the active challenge. " +
+          "The same daily limit (5/day) and duplicate-URL rules apply as the manual submit endpoint.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "videoId", in: "path", required: true, schema: { type: "string" }, description: "TikTok video ID (from the video list)" },
+        ],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/TikTokSubmitRequest" } } },
+        },
+        responses: {
+          "201": {
+            description: "Video submitted for review",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            message: { type: "string" },
+                            videoId: { type: "string" },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Missing accountId", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Not authenticated or TikTok token expired", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "404": { description: "TikTok account not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "409": { description: "Video already submitted", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "429": { description: "Daily submission limit reached", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    // ── Prize Pool ────────────────────────────────────────────────────────────
+    "/api/prize-pool": {
+      get: {
+        tags: ["PrizePool"],
+        summary: "Get current prize pool",
+        description: "Returns the active prize pool including total amount, currency, and per-rank tier breakdown. Public — no auth required.",
+        responses: {
+          "200": {
+            description: "Prize pool",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/PrizePool" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/admin/prize-pool": {
+      get: {
+        tags: ["Admin"],
+        summary: "Get prize pool (admin)",
+        description: "Admin view of the current prize pool configuration.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        responses: {
+          "200": {
+            description: "Prize pool",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/PrizePool" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not an admin", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+      put: {
+        tags: ["Admin"],
+        summary: "Update prize pool",
+        description:
+          "Sets the total prize pool amount and per-rank tier distribution. " +
+          "Changes are immediately visible to users via `GET /api/prize-pool`.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/PrizePoolRequest" } } },
+        },
+        responses: {
+          "200": {
+            description: "Prize pool updated",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/PrizePool" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Validation error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not an admin", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    // ── Cashout ───────────────────────────────────────────────────────────────
+    "/api/cashout/request": {
+      post: {
+        tags: ["Cashout"],
+        summary: "Submit a cashout request",
+        description:
+          "Creates a `pending` transaction for admin review. Only one pending request is allowed at a time. " +
+          "Uses stored `payoutInfo` from the user's profile, or the `payoutInfo` field from the request body to override.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/CashoutRequest" } } },
+        },
+        responses: {
+          "201": {
+            description: "Request submitted",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            message: { type: "string" },
+                            transactionId: { type: "string" },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Validation error or no payout info on file", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "409": { description: "Already has a pending request", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/cashout/history": {
+      get: {
+        tags: ["Cashout"],
+        summary: "Get cashout history",
+        description: "Returns the authenticated user's cashout transaction history, newest first.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        responses: {
+          "200": {
+            description: "Transaction list",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { type: "array", items: { $ref: "#/components/schemas/Transaction" } } } },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/admin/transactions": {
+      get: {
+        tags: ["Admin"],
+        summary: "List all cashout transactions",
+        description: "Returns all user cashout requests with user details. Filter by `status`.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          {
+            name: "status",
+            in: "query",
+            schema: { type: "string", enum: ["pending", "approved", "rejected"] },
+            description: "Filter by transaction status",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Transaction list",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { type: "array", items: { $ref: "#/components/schemas/TransactionWithUser" } } } },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not an admin", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/admin/transactions/{id}/approve": {
+      post: {
+        tags: ["Admin"],
+        summary: "Approve a cashout transaction",
+        description: "Marks a pending transaction as `approved`. An optional `adminNote` can be added.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" }, description: "Transaction CUID" },
+        ],
+        requestBody: {
+          content: { "application/json": { schema: { $ref: "#/components/schemas/TransactionReview" } } },
+        },
+        responses: {
+          "200": {
+            description: "Transaction approved",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { type: "object", properties: { message: { type: "string" }, transaction: { $ref: "#/components/schemas/Transaction" } } } } },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Transaction is not pending", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not an admin", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "404": { description: "Transaction not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/admin/transactions/{id}/reject": {
+      post: {
+        tags: ["Admin"],
+        summary: "Reject a cashout transaction",
+        description: "Marks a pending transaction as `rejected`. An optional `adminNote` explaining the reason can be added.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" }, description: "Transaction CUID" },
+        ],
+        requestBody: {
+          content: { "application/json": { schema: { $ref: "#/components/schemas/TransactionReview" } } },
+        },
+        responses: {
+          "200": {
+            description: "Transaction rejected",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { type: "object", properties: { message: { type: "string" }, transaction: { $ref: "#/components/schemas/Transaction" } } } } },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Transaction is not pending", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not an admin", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "404": { description: "Transaction not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    // ── Challenge / Brief Screen ───────────────────────────────────────────────
+    "/api/challenge": {
+      get: {
+        tags: ["Challenge"],
+        summary: "Get active challenge",
+        description:
+          "Returns the current challenge's title, description, rules, and guidelines. " +
+          "This is the data that powers the Brief Screen in the app. No auth required.",
+        responses: {
+          "200": {
+            description: "Active challenge",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/Challenge" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/admin/challenge": {
+      get: {
+        tags: ["Admin"],
+        summary: "Get challenge (admin)",
+        description: "Admin view of the current challenge config.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        responses: {
+          "200": {
+            description: "Challenge",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/Challenge" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not an admin", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+      put: {
+        tags: ["Admin"],
+        summary: "Update challenge / brief screen",
+        description:
+          "Creates or updates the active challenge. Changes are **instantly** visible to users via `GET /api/challenge`. " +
+          "Set `isActive: false` to hide the challenge from the app.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/ChallengeRequest" } } },
+        },
+        responses: {
+          "200": {
+            description: "Challenge updated",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/Challenge" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Validation error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not an admin", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    // ── Avatar ────────────────────────────────────────────────────────────────
+    "/api/users/me/avatar": {
+      put: {
+        tags: ["Profile"],
+        summary: "Update in-game avatar",
+        description:
+          "Sets the authenticated user's avatar URL. The URL should point to the selected in-game avatar asset. " +
+          "This `avatarUrl` is returned on all leaderboard entries.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/AvatarRequest" } } },
+        },
+        responses: {
+          "200": {
+            description: "Avatar updated",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "string" },
+                            username: { type: "string" },
+                            avatarUrl: { type: "string" },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Validation error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
         },
       },
     },
