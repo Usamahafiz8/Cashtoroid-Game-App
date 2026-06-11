@@ -6,6 +6,7 @@ interface Stats {
   videos: { total: number; pending: number; approved: number; rejected: number };
   transactions: { total: number; pending: number; approved: number };
   prizePool: { totalAmount: number; currency: string };
+  totalViews: number;
 }
 
 export default function AdminDashboard() {
@@ -56,6 +57,10 @@ export default function AdminDashboard() {
           totalAmount: pp.data?.totalAmount ?? 0,
           currency: pp.data?.currency ?? "USD",
         },
+        totalViews: (users.data ?? []).reduce(
+          (sum: number, u: { totalViews: number }) => sum + (u.totalViews ?? 0),
+          0
+        ),
       });
       setLoading(false);
     });
@@ -73,11 +78,17 @@ export default function AdminDashboard() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
+              gridTemplateColumns: "repeat(5, 1fr)",
               gap: 16,
               marginBottom: 24,
             }}
           >
+            <StatCard
+              title="Total Views"
+              value={stats!.totalViews.toLocaleString()}
+              sub="across all videos"
+              color="#e94560"
+            />
             <StatCard
               title="Total Users"
               value={stats!.users.total}
@@ -88,7 +99,7 @@ export default function AdminDashboard() {
               title="Total Videos"
               value={stats!.videos.total}
               sub={`${stats!.videos.pending} pending review`}
-              color="#e94560"
+              color="#718096"
             />
             <StatCard
               title="Transactions"

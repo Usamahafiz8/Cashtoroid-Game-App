@@ -6,8 +6,9 @@ import { signOut, useSession } from "next-auth/react";
 const NAV = [
   { href: "/dashboard", label: "Overview", icon: "⊞" },
   { href: "/dashboard/videos", label: "My Videos", icon: "▶" },
+  { href: "/dashboard/tiktok", label: "TikTok", icon: "♪" },
   { href: "/dashboard/leaderboard", label: "Leaderboard", icon: "📊" },
-  { href: "/dashboard/challenge", label: "Challenge", icon: "⚡" },
+  { href: "/dashboard/challenge", label: "Brief & Rules", icon: "⚡" },
   { href: "/dashboard/cashout", label: "Cashout", icon: "💸" },
   { href: "/dashboard/profile", label: "Profile", icon: "⚙" },
 ];

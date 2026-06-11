@@ -67,19 +67,14 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        message: "TikTok account connected successfully",
-        accountId: account.id,
-        username: account.username,
-        displayName: account.displayName,
-        avatarUrl: account.avatarUrl,
-      },
-    });
+    return NextResponse.redirect(
+      new URL(`/dashboard/tiktok?connected=1&username=${encodeURIComponent(account.username)}`, req.url)
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : "OAuth exchange failed";
     console.error("[tiktok/auth/callback]", err);
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/tiktok?error=${encodeURIComponent(message)}`, req.url)
+    );
   }
 }
