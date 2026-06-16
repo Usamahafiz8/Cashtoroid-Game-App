@@ -33,6 +33,7 @@ export const updateProfileSchema = z.object({
     .regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers, and underscores")
     .optional(),
   email: z.string().email().optional(),
+  paypalEmail: z.string().email("Must be a valid PayPal email").optional().nullable(),
   payoutInfo: z.string().max(1000).optional().nullable(),
 });
 
@@ -100,6 +101,7 @@ export const prizePoolSchema = z.object({
 export const cashoutRequestSchema = z.object({
   amount: z.number().positive(),
   currency: z.string().max(10).optional(),
+  paypalEmail: z.string().email("Must be a valid PayPal email").optional(),
   payoutInfo: z.string().max(1000).optional(),
 });
 

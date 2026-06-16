@@ -172,7 +172,8 @@ const spec: OpenAPIV3.Document = {
           email: { type: "string" },
           totalViews: { type: "integer" },
           videoCount: { type: "integer" },
-          payoutInfo: { type: "string", nullable: true, description: "JSON string: { method, accountNumber, name }" },
+          paypalEmail: { type: "string", format: "email", nullable: true, example: "user@paypal.com" },
+          payoutInfo: { type: "string", nullable: true, description: "Legacy freeform payout info" },
           isPaid: { type: "boolean" },
           paidAt: { type: "string", format: "date-time", nullable: true },
         },
@@ -252,7 +253,8 @@ const spec: OpenAPIV3.Document = {
           username: { type: "string", example: "player_one" },
           email: { type: "string", format: "email" },
           role: { type: "string", enum: ["user", "admin"] },
-          payoutInfo: { type: "string", nullable: true, description: "JSON string: { method, accountNumber, name }" },
+          paypalEmail: { type: "string", format: "email", nullable: true, example: "user@paypal.com", description: "PayPal email used for payouts" },
+          payoutInfo: { type: "string", nullable: true, description: "Legacy freeform payout info (deprecated, use paypalEmail)" },
           isPaid: { type: "boolean" },
           paidAt: { type: "string", format: "date-time", nullable: true },
           createdAt: { type: "string", format: "date-time" },
@@ -263,7 +265,8 @@ const spec: OpenAPIV3.Document = {
         properties: {
           username: { type: "string", minLength: 3, maxLength: 20, pattern: "^[a-zA-Z0-9_]+$", example: "new_username" },
           email: { type: "string", format: "email", example: "new@example.com" },
-          payoutInfo: { type: "string", nullable: true, example: "{\"method\":\"PayPal\",\"accountNumber\":\"user@paypal.com\",\"name\":\"John Doe\"}" },
+          paypalEmail: { type: "string", format: "email", nullable: true, example: "user@paypal.com", description: "PayPal email for receiving payouts" },
+          payoutInfo: { type: "string", nullable: true, description: "Legacy freeform payout info (deprecated)" },
         },
       },
       UserStats: {
@@ -403,7 +406,8 @@ const spec: OpenAPIV3.Document = {
         properties: {
           amount: { type: "number", minimum: 0.01, example: 50 },
           currency: { type: "string", maxLength: 10, example: "USD" },
-          payoutInfo: { type: "string", maxLength: 1000, example: "{\"method\":\"PayPal\",\"account\":\"user@paypal.com\"}", description: "Override stored payout info for this request" },
+          paypalEmail: { type: "string", format: "email", example: "user@paypal.com", description: "Override PayPal email for this request. Falls back to profile paypalEmail if omitted." },
+          payoutInfo: { type: "string", maxLength: 1000, description: "Legacy override (deprecated, use paypalEmail)" },
         },
       },
       Transaction: {
@@ -414,7 +418,8 @@ const spec: OpenAPIV3.Document = {
           amount: { type: "number" },
           currency: { type: "string" },
           status: { type: "string", enum: ["pending", "approved", "rejected"] },
-          payoutInfo: { type: "string", nullable: true },
+          paypalEmail: { type: "string", format: "email", nullable: true, description: "PayPal email snapshotted at request time" },
+          payoutInfo: { type: "string", nullable: true, description: "Legacy freeform payout info" },
           adminNote: { type: "string", nullable: true },
           reviewedAt: { type: "string", format: "date-time", nullable: true },
           createdAt: { type: "string", format: "date-time" },
@@ -758,6 +763,37 @@ const spec: OpenAPIV3.Document = {
     },
 
     // ── Admin ────────────────────────────────────────────────────────────────
+    "/api/admin/videos/{id}": {
+      delete: {
+        tags: ["Admin"],
+        summary: "Delete any video (admin)",
+        description: "Permanently deletes a video regardless of status or owner. This action is irreversible.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" }, description: "Video CUID" },
+        ],
+        responses: {
+          "200": {
+            description: "Video deleted",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { type: "object", properties: { message: { type: "string", example: "Video deleted" } } } } },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not an admin", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "404": { description: "Video not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Internal server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
     "/api/admin/videos": {
       get: {
         tags: ["Admin"],
@@ -1309,7 +1345,7 @@ const spec: OpenAPIV3.Document = {
       get: {
         tags: ["Profile"],
         summary: "Get own profile",
-        description: "Returns the full profile of the currently authenticated user including payoutInfo and payment status.",
+        description: "Returns the full profile of the currently authenticated user including paypalEmail, payoutInfo, and payment status.",
         security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         responses: {
           "200": {
@@ -1333,7 +1369,7 @@ const spec: OpenAPIV3.Document = {
         tags: ["Profile"],
         summary: "Update own profile",
         description:
-          "Updates the authenticated user's username, email, and/or payout info. " +
+          "Updates the authenticated user's username, email, paypalEmail, and/or payoutInfo. " +
           "All fields are optional — only provided fields are updated. " +
           "Username and email are checked for uniqueness.",
         security: [{ bearerAuth: [] }, { cookieAuth: [] }],
@@ -2054,7 +2090,8 @@ const spec: OpenAPIV3.Document = {
         summary: "Submit a cashout request",
         description:
           "Creates a `pending` transaction for admin review. Only one pending request is allowed at a time. " +
-          "Uses stored `payoutInfo` from the user's profile, or the `payoutInfo` field from the request body to override.",
+          "Requires a PayPal email — resolved from: request body `paypalEmail` → user profile `paypalEmail`. " +
+          "Returns 400 if neither is set. The PayPal email is snapshotted onto the transaction at creation time.",
         security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         requestBody: {
           required: true,
@@ -2310,6 +2347,70 @@ const spec: OpenAPIV3.Document = {
     },
 
     // ── Avatar ────────────────────────────────────────────────────────────────
+    "/api/users/me/avatar/upload": {
+      post: {
+        tags: ["Profile"],
+        summary: "Upload avatar image to Cloudinary",
+        description:
+          "Uploads an image file to Cloudinary and automatically sets it as the user's in-game avatar. " +
+          "Accepts `multipart/form-data` with a single field named `file`. " +
+          "Supported types: JPEG, PNG, WebP, GIF. Maximum size: 5 MB. " +
+          "Image is cropped to 400×400 face-fill on Cloudinary. " +
+          "On success, `user.avatarUrl` is updated automatically.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "multipart/form-data": {
+              schema: {
+                type: "object",
+                required: ["file"],
+                properties: {
+                  file: { type: "string", format: "binary", description: "Image file (JPEG, PNG, WebP, or GIF — max 5 MB)" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Avatar uploaded and saved",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            avatarUrl: { type: "string", format: "uri", description: "Cloudinary URL of the uploaded avatar" },
+                            user: {
+                              type: "object",
+                              properties: {
+                                id: { type: "string" },
+                                username: { type: "string" },
+                                avatarUrl: { type: "string" },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "No file, unsupported type, or file too large", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error or Cloudinary upload failed", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
     "/api/users/me/avatar": {
       put: {
         tags: ["Profile"],

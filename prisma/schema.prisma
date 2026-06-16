@@ -14,6 +14,7 @@ model User {
   password       String
   role           String          @default("user")
   avatarUrl      String?
+  paypalEmail    String?
   payoutInfo     String?
   isPaid         Boolean         @default(false)
   paidAt         DateTime?
@@ -80,8 +81,9 @@ model Transaction {
   amount     Float
   currency   String    @default("USD")
   status     String    @default("pending")
-  payoutInfo String?
-  adminNote  String?
+  paypalEmail String?
+  payoutInfo  String?
+  adminNote   String?
   reviewedBy String?
   reviewedAt DateTime?
   createdAt  DateTime  @default(now())

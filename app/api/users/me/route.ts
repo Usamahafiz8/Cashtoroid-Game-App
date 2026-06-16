@@ -20,6 +20,7 @@ export async function GET() {
         username: true,
         email: true,
         role: true,
+        paypalEmail: true,
         payoutInfo: true,
         isPaid: true,
         paidAt: true,
@@ -59,7 +60,7 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const { username, email, payoutInfo } = parsed.data;
+    const { username, email, paypalEmail, payoutInfo } = parsed.data;
 
     // Check uniqueness of username/email if being changed
     if (username || email) {
@@ -84,6 +85,7 @@ export async function PUT(req: NextRequest) {
       data: {
         ...(username !== undefined ? { username } : {}),
         ...(email !== undefined ? { email } : {}),
+        ...(paypalEmail !== undefined ? { paypalEmail } : {}),
         ...(payoutInfo !== undefined ? { payoutInfo } : {}),
       },
       select: {
@@ -91,6 +93,7 @@ export async function PUT(req: NextRequest) {
         username: true,
         email: true,
         role: true,
+        paypalEmail: true,
         payoutInfo: true,
         isPaid: true,
         paidAt: true,

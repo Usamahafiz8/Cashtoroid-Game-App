@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { amount, currency, payoutInfo } = parsed.data;
+    const { amount, currency, paypalEmail, payoutInfo } = parsed.data;
 
     // Prevent duplicate pending requests
     const existing = await prisma.transaction.findFirst({
@@ -33,14 +33,21 @@ export async function POST(req: NextRequest) {
     }
 
     const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-    const resolvedPayoutInfo = payoutInfo ?? dbUser?.payoutInfo ?? null;
 
-    if (!resolvedPayoutInfo) {
+    // Resolve PayPal email: request body > user profile
+    const resolvedPaypalEmail = paypalEmail ?? dbUser?.paypalEmail ?? null;
+
+    if (!resolvedPaypalEmail) {
       return NextResponse.json(
-        { success: false, error: "No payout info on file. Please add payment details to your profile." },
+        {
+          success: false,
+          error: "No PayPal email on file. Please add your PayPal email to your profile.",
+        },
         { status: 400 }
       );
     }
+
+    const resolvedPayoutInfo = payoutInfo ?? dbUser?.payoutInfo ?? null;
 
     const transaction = await prisma.transaction.create({
       data: {
@@ -48,6 +55,7 @@ export async function POST(req: NextRequest) {
         amount,
         currency: currency ?? "USD",
         status: "pending",
+        paypalEmail: resolvedPaypalEmail,
         payoutInfo: resolvedPayoutInfo,
       },
     });
