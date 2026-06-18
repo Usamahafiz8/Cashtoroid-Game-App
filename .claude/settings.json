@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"/Users/cybillnerd/Desktop/Cashtoroid/app/api/tiktok/accounts/[id]/videos\" \"/Users/cybillnerd/Desktop/Cashtoroid/app/api/tiktok/videos/[videoId]/submit\")",
+      "Bash(mkdir -p /Users/cybillnerd/Desktop/Cashtoroid/app/api/prize-pool /Users/cybillnerd/Desktop/Cashtoroid/app/api/admin/prize-pool /Users/cybillnerd/Desktop/Cashtoroid/app/api/cashout/request /Users/cybillnerd/Desktop/Cashtoroid/app/api/cashout/history \"/Users/cybillnerd/Desktop/Cashtoroid/app/api/admin/transactions/[id]/approve\" \"/Users/cybillnerd/Desktop/Cashtoroid/app/api/admin/transactions/[id]/reject\" /Users/cybillnerd/Desktop/Cashtoroid/app/api/challenge /Users/cybillnerd/Desktop/Cashtoroid/app/api/admin/challenge /Users/cybillnerd/Desktop/Cashtoroid/app/api/users/me/avatar)",
+      "Bash(mkdir -p /Users/cybillnerd/.claude/projects/-Users-cybillnerd-Desktop-Cashtoroid/memory)",
+      "Bash(mkdir -p \"/Users/cybillnerd/Desktop/Cashtoroid/app/api/admin/videos/[id]\")",
+      "Bash(xargs ls)",
+      "Bash(git -C /Users/cybillnerd/Desktop/Cashtoroid diff --stat)",
+      "Bash(git -C /Users/cybillnerd/Desktop/Cashtoroid log --oneline)"
+    ],
+    "additionalDirectories": [
+      "/Users/cybillnerd/Desktop/Cashtoroid/app/api/tiktok/accounts/[id]",
+      "/Users/cybillnerd/Desktop/Cashtoroid/app/api/admin/transactions/[id]",
+      "/Users/cybillnerd/.claude/projects/-Users-cybillnerd-Desktop-Cashtoroid",
+      "/Users/cybillnerd/Desktop/Cashtoroid/app/api/admin/videos"
+    ]
+  }
+}

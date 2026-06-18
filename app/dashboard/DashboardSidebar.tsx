@@ -17,6 +17,12 @@ export default function DashboardSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
+  const role = (session?.user as { role?: string } | undefined)?.role ?? "user";
+  const isAdmin = role === "admin";
+
+  const navItems = isAdmin
+    ? [...NAV, { href: "/admin", label: "Admin Panel", icon: "🛡" }]
+    : NAV;
 
   async function handleLogout() {
     await signOut({ redirect: false });
@@ -61,7 +67,7 @@ export default function DashboardSidebar() {
 
       {/* Nav */}
       <nav style={{ padding: "8px 0", flex: 1 }}>
-        {NAV.map(({ href, label, icon }) => {
+        {navItems.map(({ href, label, icon }) => {
           const active =
             pathname === href ||
             (href !== "/dashboard" && pathname.startsWith(href));
@@ -131,8 +137,8 @@ export default function DashboardSidebar() {
             >
               {session.user.name ?? session.user.email}
             </div>
-            <div style={{ color: "#64748b", fontSize: "0.7rem", marginTop: 1 }}>
-              Member
+            <div style={{ color: isAdmin ? "#e94560" : "#64748b", fontSize: "0.7rem", marginTop: 1, fontWeight: isAdmin ? 700 : 400 }}>
+              {isAdmin ? "Admin" : "Member"}
             </div>
           </div>
         )}
