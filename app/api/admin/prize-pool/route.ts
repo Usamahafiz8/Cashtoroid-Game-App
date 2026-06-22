@@ -30,7 +30,11 @@ export async function PUT(req: NextRequest) {
     const parsed = prizePoolSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: "Validation failed", details: parsed.error.errors },
+        {
+          success: false,
+          error: parsed.error.errors[0]?.message ?? "Validation failed",
+          details: parsed.error.errors,
+        },
         { status: 400 }
       );
     }

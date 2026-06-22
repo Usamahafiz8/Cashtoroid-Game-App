@@ -22,8 +22,6 @@ const DEFAULT: PrizePool = {
 
 export default function PrizePoolPage() {
   const [data, setData] = useState<PrizePool>(DEFAULT);
-  const [tiersText, setTiersText] = useState("[]");
-  const [tiersError, setTiersError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
@@ -33,40 +31,74 @@ export default function PrizePoolPage() {
       .then((r) => r.json())
       .then((d) => {
         const pool: PrizePool = d.data ?? DEFAULT;
-        setData(pool);
-        setTiersText(JSON.stringify(pool.tiers ?? [], null, 2));
+        setData({ ...pool, tiers: pool.tiers ?? [] });
         setLoading(false);
       });
   }, []);
 
+  function addTier() {
+    setData((prev) => {
+      const nextRank =
+        prev.tiers.length > 0
+          ? Math.max(...prev.tiers.map((t) => t.rank)) + 1
+          : 1;
+      return { ...prev, tiers: [...prev.tiers, { rank: nextRank, amount: 0 }] };
+    });
+  }
+
+  function removeTier(index: number) {
+    setData((prev) => ({
+      ...prev,
+      tiers: prev.tiers.filter((_, i) => i !== index),
+    }));
+  }
+
+  function updateTier(index: number, field: "rank" | "amount", value: number) {
+    setData((prev) => ({
+      ...prev,
+      tiers: prev.tiers.map((t, i) => (i === index ? { ...t, [field]: value } : t)),
+    }));
+  }
+
   async function save() {
-    let tiers: PrizeTier[];
-    try {
-      tiers = JSON.parse(tiersText);
-      setTiersError("");
-    } catch {
-      setTiersError("Invalid JSON — please fix before saving.");
-      return;
-    }
+    if (validationError) return;
 
     setSaving(true);
     const res = await fetch("/api/admin/prize-pool", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, tiers }),
+      body: JSON.stringify(data),
     });
     const d = await res.json();
     setSaving(false);
     setMsg({ text: d.success ? "Saved!" : (d.error ?? "Failed"), ok: d.success });
-    if (d.success) setData((prev) => ({ ...prev, tiers }));
+    if (d.success && d.data) setData({ ...d.data, tiers: d.data.tiers ?? [] });
     setTimeout(() => setMsg(null), 3000);
   }
 
   if (loading) return <div style={{ padding: 32, color: "#718096" }}>Loading...</div>;
 
-  const tiersParsed: PrizeTier[] = (() => {
-    try { return JSON.parse(tiersText); } catch { return []; }
-  })();
+  const tiers = data.tiers;
+  const tiersSum = tiers.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+
+  // Validation — shown live and used to guard Save.
+  const ranks = tiers.map((t) => t.rank);
+  const hasDuplicateRank = new Set(ranks).size !== ranks.length;
+  const hasInvalidRank = tiers.some((t) => !Number.isInteger(t.rank) || t.rank < 1);
+  const sumMismatch =
+    tiers.length > 0 &&
+    Math.round(tiersSum * 100) !== Math.round((data.totalAmount || 0) * 100);
+
+  const validationError = hasInvalidRank
+    ? "Each rank must be a whole number (1 or higher)."
+    : hasDuplicateRank
+    ? "Each rank can only be used once."
+    : sumMismatch
+    ? `Tiers add up to $${tiersSum.toLocaleString()} but the pool is $${(data.totalAmount || 0).toLocaleString()} — they must match exactly.`
+    : "";
+
+  const remaining = (data.totalAmount || 0) - tiersSum;
+  const sortedTiers = [...tiers].sort((a, b) => a.rank - b.rank);
 
   return (
     <div style={{ padding: 32 }}>
@@ -119,28 +151,77 @@ export default function PrizePoolPage() {
           </div>
 
           <div style={fieldGroup}>
-            <label style={label}>Prize Tiers (JSON)</label>
-            <div style={{ color: "#a0aec0", fontSize: "0.75rem", marginBottom: 6 }}>
-              Format: <code>[{"{ \"rank\": 1, \"amount\": 500 }"}]</code>
+            <label style={label}>Prize Tiers</label>
+            <div style={{ color: "#a0aec0", fontSize: "0.75rem", marginBottom: 10 }}>
+              Add a row for each rank. The amounts must add up to the Total Amount above.
             </div>
-            <textarea
-              value={tiersText}
-              onChange={(e) => {
-                setTiersText(e.target.value);
-                setTiersError("");
-              }}
-              rows={10}
+
+            {tiers.length > 0 && (
+              <div style={{ display: "flex", gap: 10, marginBottom: 6 }}>
+                <div style={{ ...colLabel, width: 110 }}>Rank</div>
+                <div style={{ ...colLabel, flex: 1 }}>Amount ({data.currency})</div>
+                <div style={{ width: 36 }} />
+              </div>
+            )}
+
+            {tiers.map((tier, i) => (
+              <div key={i} style={{ display: "flex", gap: 10, marginBottom: 8 }}>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={tier.rank}
+                  onChange={(e) =>
+                    updateTier(i, "rank", parseInt(e.target.value, 10) || 0)
+                  }
+                  style={{ ...input, width: 110 }}
+                  placeholder="1"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={tier.amount}
+                  onChange={(e) =>
+                    updateTier(i, "amount", parseFloat(e.target.value) || 0)
+                  }
+                  style={{ ...input, flex: 1 }}
+                  placeholder="0"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeTier(i)}
+                  title="Remove tier"
+                  style={removeBtn}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+
+            <button type="button" onClick={addTier} style={addBtn}>
+              + Add Tier
+            </button>
+
+            <div
               style={{
-                ...input,
-                fontFamily: "monospace",
-                fontSize: "0.85rem",
-                resize: "vertical",
-                borderColor: tiersError ? "#e94560" : "#e2e8f0",
+                marginTop: 12,
+                fontSize: "0.8rem",
+                color: remaining === 0 ? "#48bb78" : "#718096",
               }}
-            />
-            {tiersError && (
-              <div style={{ color: "#e94560", fontSize: "0.75rem", marginTop: 4 }}>
-                {tiersError}
+            >
+              Allocated: ${tiersSum.toLocaleString()} of $
+              {(data.totalAmount || 0).toLocaleString()}{" "}
+              {remaining !== 0 && (
+                <span style={{ color: "#e94560" }}>
+                  ({remaining > 0 ? `$${remaining.toLocaleString()} left to allocate` : `$${Math.abs(remaining).toLocaleString()} over`})
+                </span>
+              )}
+            </div>
+
+            {validationError && (
+              <div style={{ color: "#e94560", fontSize: "0.75rem", marginTop: 6 }}>
+                {validationError}
               </div>
             )}
           </div>
@@ -148,8 +229,12 @@ export default function PrizePoolPage() {
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button
               onClick={save}
-              disabled={saving}
-              style={{ ...btn, backgroundColor: saving ? "#a0aec0" : "#0f3460" }}
+              disabled={saving || !!validationError}
+              style={{
+                ...btn,
+                backgroundColor: saving || validationError ? "#a0aec0" : "#0f3460",
+                cursor: saving || validationError ? "not-allowed" : "pointer",
+              }}
             >
               {saving ? "Saving…" : "Save Changes"}
             </button>
@@ -177,14 +262,14 @@ export default function PrizePoolPage() {
               {data.description}
             </div>
           )}
-          {tiersParsed.length > 0 && (
+          {sortedTiers.length > 0 && (
             <div>
               <div style={{ color: "#718096", fontSize: "0.75rem", marginBottom: 8, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>
                 Tier Breakdown
               </div>
-              {tiersParsed.map((tier) => (
+              {sortedTiers.map((tier, i) => (
                 <div
-                  key={tier.rank}
+                  key={i}
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
@@ -197,7 +282,7 @@ export default function PrizePoolPage() {
                     {tier.rank === 1 ? "🥇" : tier.rank === 2 ? "🥈" : tier.rank === 3 ? "🥉" : `#${tier.rank}`} Rank {tier.rank}
                   </span>
                   <span style={{ fontWeight: 700, color: "#0f3460" }}>
-                    ${tier.amount.toLocaleString()}
+                    ${(Number(tier.amount) || 0).toLocaleString()}
                   </span>
                 </div>
               ))}
@@ -227,6 +312,13 @@ const label: React.CSSProperties = {
   textTransform: "uppercase",
   letterSpacing: "0.5px",
 };
+const colLabel: React.CSSProperties = {
+  fontSize: "0.7rem",
+  fontWeight: 600,
+  color: "#a0aec0",
+  textTransform: "uppercase",
+  letterSpacing: "0.5px",
+};
 const input: React.CSSProperties = {
   padding: "9px 12px",
   border: "1px solid #e2e8f0",
@@ -244,4 +336,24 @@ const btn: React.CSSProperties = {
   fontWeight: 600,
   color: "#fff",
   fontSize: "0.875rem",
+};
+const addBtn: React.CSSProperties = {
+  padding: "8px 16px",
+  border: "1px dashed #cbd5e0",
+  borderRadius: 6,
+  cursor: "pointer",
+  fontWeight: 600,
+  color: "#0f3460",
+  backgroundColor: "#f7fafc",
+  fontSize: "0.8rem",
+};
+const removeBtn: React.CSSProperties = {
+  width: 36,
+  flexShrink: 0,
+  border: "1px solid #fed7d7",
+  borderRadius: 6,
+  cursor: "pointer",
+  color: "#e94560",
+  backgroundColor: "#fff5f5",
+  fontSize: "0.85rem",
 };

@@ -64,25 +64,6 @@ export default function UsersPage() {
     setBusy(null);
   }
 
-  async function markPaid(userId: string) {
-    setBusy(userId + "-paid");
-    const res = await fetch("/api/admin/mark-paid", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
-    });
-    const d = await res.json();
-    if (d.success) {
-      setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, isPaid: true } : u))
-      );
-      flash(userId, "Marked as paid", true);
-    } else {
-      flash(userId, d.error ?? "Failed", false);
-    }
-    setBusy(null);
-  }
-
   const filtered = users.filter(
     (u) =>
       u.username.toLowerCase().includes(search.toLowerCase()) ||
@@ -165,15 +146,6 @@ export default function UsersPage() {
                         <option value="user">user</option>
                         <option value="admin">admin</option>
                       </select>
-                      {!user.isPaid && (
-                        <button
-                          onClick={() => markPaid(user.id)}
-                          disabled={busy === user.id + "-paid"}
-                          style={{ ...btnSm, backgroundColor: "#48bb78" }}
-                        >
-                          Mark Paid
-                        </button>
-                      )}
                       <button
                         onClick={() => deleteUser(user.id, user.username)}
                         disabled={busy === user.id + "-del"}

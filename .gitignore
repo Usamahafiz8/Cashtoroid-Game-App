@@ -4,7 +4,9 @@ node_modules/
 .pnp.js
 
 # Environment variables — NEVER commit these
-.env.*.local
+.env
+.env.*
+!.env.example
 
 # Next.js build output
 .next/

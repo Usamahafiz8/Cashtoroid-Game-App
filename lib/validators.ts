@@ -83,19 +83,33 @@ export const leaderboardConfigSchema = z.object({
 });
 
 // ── Prize Pool ───────────────────────────────────────────────────────────────
-export const prizePoolSchema = z.object({
-  totalAmount: z.number().min(0),
-  currency: z.string().max(10).optional(),
-  tiers: z
-    .array(
-      z.object({
-        rank: z.number().int().positive(),
-        amount: z.number().min(0),
-      })
-    )
-    .optional(),
-  description: z.string().max(1000).optional().nullable(),
-});
+export const prizePoolSchema = z
+  .object({
+    totalAmount: z.number().min(0),
+    currency: z.string().max(10).optional(),
+    tiers: z
+      .array(
+        z.object({
+          rank: z.number().int().positive(),
+          amount: z.number().min(0),
+        })
+      )
+      .optional(),
+    description: z.string().max(1000).optional().nullable(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.tiers && val.tiers.length > 0) {
+      const sum = val.tiers.reduce((s, t) => s + t.amount, 0);
+      // Compare in cents to avoid floating-point drift.
+      if (Math.round(sum * 100) !== Math.round(val.totalAmount * 100)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Prize tiers total ${sum} but the pool total is ${val.totalAmount}; they must match exactly.`,
+          path: ["tiers"],
+        });
+      }
+    }
+  });
 
 // ── Cashout ───────────────────────────────────────────────────────────────────
 export const cashoutRequestSchema = z.object({
