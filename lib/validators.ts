@@ -124,15 +124,26 @@ export const transactionReviewSchema = z.object({
 });
 
 // ── Challenge ─────────────────────────────────────────────────────────────────
-export const challengeSchema = z.object({
-  title: z.string().min(1).max(200),
-  description: z.string().max(20000),
-  rules: z.string().max(20000),
-  guidelines: z.string().max(20000).optional().nullable(),
-  isActive: z.boolean().optional(),
-  startDate: z.string().datetime().optional().nullable(),
-  endDate: z.string().datetime().optional().nullable(),
-});
+export const challengeSchema = z
+  .object({
+    title: z.string().min(1, "Title is required").max(200),
+    description: z.string().max(20000),
+    rules: z.string().max(20000),
+    guidelines: z.string().max(20000).optional().nullable(),
+    isActive: z.boolean().optional(),
+    // Accept any ISO-ish datetime string (with or without timezone/seconds).
+    startDate: z.string().datetime({ offset: true }).optional().nullable(),
+    endDate: z.string().datetime({ offset: true }).optional().nullable(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.startDate && val.endDate && new Date(val.endDate) < new Date(val.startDate)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "End date must be on or after the start date.",
+        path: ["endDate"],
+      });
+    }
+  });
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 export const avatarSchema = z.object({

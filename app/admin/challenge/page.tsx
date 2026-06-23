@@ -21,6 +21,27 @@ const DEFAULT: Challenge = {
   endDate: null,
 };
 
+// Local "YYYY-MM-DDTHH:mm" for now (used as the min for the datetime pickers).
+function nowLocal(): string {
+  const d = new Date();
+  const off = d.getTimezoneOffset();
+  return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16);
+}
+
+// Convert a stored ISO datetime to the local "YYYY-MM-DDTHH:mm" the picker wants.
+function isoToDateInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const off = d.getTimezoneOffset();
+  return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16);
+}
+
+// Convert a picked "YYYY-MM-DDTHH:mm" value to a full ISO string for the API.
+function dateInputToISO(value: string): string | null {
+  if (!value) return null;
+  return new Date(value).toISOString();
+}
+
 export default function ChallengePage() {
   const [data, setData] = useState<Challenge>(DEFAULT);
   const [loading, setLoading] = useState(true);
@@ -31,7 +52,13 @@ export default function ChallengePage() {
     fetch("/api/admin/challenge")
       .then((r) => r.json())
       .then((d) => {
-        setData(d.data ?? DEFAULT);
+        const c = d.data ?? DEFAULT;
+        // Store date-only strings in state so the date inputs are clean.
+        setData({
+          ...c,
+          startDate: isoToDateInput(c.startDate) || null,
+          endDate: isoToDateInput(c.endDate) || null,
+        });
         setLoading(false);
       });
   }, []);
@@ -41,23 +68,39 @@ export default function ChallengePage() {
   }
 
   async function save() {
+    if (validationError) return;
     setSaving(true);
+    const payload = {
+      ...data,
+      startDate: dateInputToISO(data.startDate ?? ""),
+      endDate: dateInputToISO(data.endDate ?? ""),
+    };
     const res = await fetch("/api/admin/challenge", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
     const d = await res.json();
     setSaving(false);
     setMsg({ text: d.success ? "Challenge saved!" : (d.error ?? "Failed"), ok: d.success });
-    setTimeout(() => setMsg(null), 3000);
+    setTimeout(() => setMsg(null), 4000);
   }
 
   if (loading) return <div style={{ padding: 32, color: "#718096" }}>Loading...</div>;
 
-  const now = new Date();
+  const minNow = nowLocal();
+  // Validation shown live and used to guard Save.
+  const validationError = !data.title.trim()
+    ? "Title is required."
+    : data.startDate && data.startDate < minNow
+    ? "Start date/time can't be in the past."
+    : data.startDate && data.endDate && data.endDate < data.startDate
+    ? "End date/time must be after the start."
+    : "";
+
   const start = data.startDate ? new Date(data.startDate) : null;
   const end = data.endDate ? new Date(data.endDate) : null;
+  const now = new Date();
   const isLive = data.isActive && (!start || start <= now) && (!end || end >= now);
 
   return (
@@ -129,8 +172,17 @@ export default function ChallengePage() {
               <label style={lbl}>Start Date <span style={{ fontWeight: 400, textTransform: "none", color: "#a0aec0" }}>(optional)</span></label>
               <input
                 type="datetime-local"
-                value={data.startDate ? data.startDate.slice(0, 16) : ""}
-                onChange={(e) => set("startDate", e.target.value || null)}
+                value={data.startDate ?? ""}
+                min={minNow}
+                onChange={(e) => {
+                  const v = e.target.value || null;
+                  setData((prev) => ({
+                    ...prev,
+                    startDate: v,
+                    // Keep end after start: clear an end that's now before start.
+                    endDate: prev.endDate && v && prev.endDate < v ? null : prev.endDate,
+                  }));
+                }}
                 style={input}
               />
             </div>
@@ -138,18 +190,29 @@ export default function ChallengePage() {
               <label style={lbl}>End Date <span style={{ fontWeight: 400, textTransform: "none", color: "#a0aec0" }}>(optional)</span></label>
               <input
                 type="datetime-local"
-                value={data.endDate ? data.endDate.slice(0, 16) : ""}
+                value={data.endDate ?? ""}
+                min={data.startDate ?? minNow}
                 onChange={(e) => set("endDate", e.target.value || null)}
                 style={input}
               />
             </div>
           </div>
 
+          {validationError && (
+            <div style={{ color: "#e94560", fontSize: "0.8rem", marginBottom: 14 }}>
+              {validationError}
+            </div>
+          )}
+
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button
               onClick={save}
-              disabled={saving}
-              style={{ ...btn, backgroundColor: saving ? "#a0aec0" : "#0f3460" }}
+              disabled={saving || !!validationError}
+              style={{
+                ...btn,
+                backgroundColor: saving || validationError ? "#a0aec0" : "#0f3460",
+                cursor: saving || validationError ? "not-allowed" : "pointer",
+              }}
             >
               {saving ? "Saving…" : "Save Challenge"}
             </button>

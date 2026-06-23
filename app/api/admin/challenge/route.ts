@@ -14,11 +14,11 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: challenge ?? {
-        title: "No challenge set",
+        title: "",
         description: "",
         rules: "",
         guidelines: null,
-        isActive: false,
+        isActive: true,
         startDate: null,
         endDate: null,
       },
@@ -38,7 +38,11 @@ export async function PUT(req: NextRequest) {
     const parsed = challengeSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: "Validation failed", details: parsed.error.errors },
+        {
+          success: false,
+          error: parsed.error.errors[0]?.message ?? "Validation failed",
+          details: parsed.error.errors,
+        },
         { status: 400 }
       );
     }
