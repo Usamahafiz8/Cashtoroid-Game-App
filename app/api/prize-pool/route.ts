@@ -10,7 +10,7 @@ export async function GET() {
     if (!pool) {
       return NextResponse.json({
         success: true,
-        data: { totalAmount: 0, currency: "USD", tiers: [], description: null },
+        data: { totalAmount: 0, currency: "USD", tiers: [], description: null, viewRate: 0 },
       });
     }
 

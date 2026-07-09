@@ -42,12 +42,16 @@ export async function GET() {
 
     await Promise.all(refreshPromises);
 
+    const pool = await prisma.prizePool.findUnique({ where: { id: "singleton" } });
+    const viewRate = pool?.viewRate ?? 0;
+
     const result = videos.map(({ id, url, platform, title, currentViews, status, createdAt }) => ({
       id,
       url,
       platform,
       title,
       currentViews,
+      earnings: Math.round((currentViews / 1000) * viewRate * 100) / 100,
       status,
       createdAt,
     }));

@@ -27,6 +27,10 @@ export async function GET() {
     const leaderboard = await calculateLeaderboard();
     const entry = leaderboard.find((e) => e.userId === userId);
 
+    const pool = await prisma.prizePool.findUnique({ where: { id: "singleton" } });
+    const viewRate = pool?.viewRate ?? 0;
+    const earnings = Math.round((totalViews / 1000) * viewRate * 100) / 100;
+
     return NextResponse.json({
       success: true,
       data: {
@@ -35,6 +39,7 @@ export async function GET() {
         pendingVideos: pendingVideos.length,
         rejectedVideos: rejectedVideos.length,
         totalViews,
+        earnings,
         rank: entry?.rank ?? null,
       },
     });

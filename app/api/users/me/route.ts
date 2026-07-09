@@ -20,6 +20,7 @@ export async function GET() {
         username: true,
         email: true,
         role: true,
+        avatarUrl: true,
         paypalEmail: true,
         payoutInfo: true,
         isPaid: true,
@@ -32,7 +33,16 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, data: user });
+    // Sum of actually-paid-out transactions (the Profile screen's "Lifetime Earnings").
+    const paidAgg = await prisma.transaction.aggregate({
+      where: { userId, status: "approved" },
+      _sum: { amount: true },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: { ...user, lifetimeEarnings: paidAgg._sum.amount ?? 0 },
+    });
   } catch (err) {
     console.error("[users/me GET]", err);
     return NextResponse.json(
@@ -93,6 +103,7 @@ export async function PUT(req: NextRequest) {
         username: true,
         email: true,
         role: true,
+        avatarUrl: true,
         paypalEmail: true,
         payoutInfo: true,
         isPaid: true,

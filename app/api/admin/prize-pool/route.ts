@@ -13,7 +13,7 @@ export async function GET() {
     const pool = await prisma.prizePool.findUnique({ where: { id: "singleton" } });
     return NextResponse.json({
       success: true,
-      data: pool ?? { totalAmount: 0, currency: "USD", tiers: [], description: null },
+      data: pool ?? { totalAmount: 0, currency: "USD", tiers: [], description: null, viewRate: 0 },
     });
   } catch (err) {
     console.error("[admin/prize-pool GET]", err);
@@ -39,7 +39,7 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const { totalAmount, currency, tiers, description } = parsed.data;
+    const { totalAmount, currency, tiers, description, viewRate } = parsed.data;
 
     const pool = await prisma.prizePool.upsert({
       where: { id: "singleton" },
@@ -48,6 +48,7 @@ export async function PUT(req: NextRequest) {
         ...(currency !== undefined && { currency }),
         ...(tiers !== undefined && { tiers }),
         ...(description !== undefined && { description }),
+        ...(viewRate !== undefined && { viewRate }),
       },
       create: {
         id: "singleton",
@@ -55,6 +56,7 @@ export async function PUT(req: NextRequest) {
         currency: currency ?? "USD",
         tiers: tiers ?? [],
         description: description ?? null,
+        viewRate: viewRate ?? 0,
       },
     });
 

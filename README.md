@@ -162,6 +162,10 @@ npx prisma db push
 
 ---
 
+## Earnings display (new design support)
+
+The Unity app's new dashboard/profile screens show dollar earnings computed from view counts. This is driven by `PrizePool.viewRate` (dollars per 1000 approved views) — **set it via `PUT /api/admin/prize-pool` (include a `viewRate` field alongside the existing `totalAmount`/`tiers`) or every earnings figure in the app will show $0.00.** Scoring/ranking itself is still view-count only; there's no likes/comments tracking. `GET /api/users/me` also now returns `avatarUrl` and `lifetimeEarnings` (sum of `approved`-status transactions), and `GET /api/videos/my-videos` / `GET /api/users/me/stats` now include a computed `earnings` field.
+
 ## Response Format
 
 All endpoints return:

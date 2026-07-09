@@ -71,6 +71,9 @@ model PrizePool {
   currency    String   @default("USD")
   tiers       Json     @default("[]")
   description String?
+  // Dollars earned per 1000 approved views; drives the "Earnings" figures
+  // shown on the Dashboard/My Videos screens (view-count based, admin-tunable).
+  viewRate    Float    @default(0)
   updatedAt   DateTime @updatedAt
 }
 

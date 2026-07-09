@@ -96,6 +96,8 @@ export const prizePoolSchema = z
       )
       .optional(),
     description: z.string().max(1000).optional().nullable(),
+    // Dollars per 1000 approved views, used for Dashboard/My Videos earnings display.
+    viewRate: z.number().min(0).optional(),
   })
   .superRefine((val, ctx) => {
     if (val.tiers && val.tiers.length > 0) {
