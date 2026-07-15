@@ -8,17 +8,10 @@ export async function GET() {
   try {
     const leaderboard = await calculateLeaderboard();
 
-    // Prize each rank is currently in line to win, from the active prize pool.
+    // Each user's earnings = (approved views / 1000) * viewRate ($ per 1000 views).
     const pool = await prisma.prizePool.findUnique({ where: { id: "singleton" } });
     const currency = pool?.currency ?? "USD";
-    const tiers = (Array.isArray(pool?.tiers) ? pool!.tiers : []) as unknown as Array<{
-      rank: number;
-      amount: number;
-    }>;
-    const prizeByRank = new Map<number, number>();
-    for (const t of tiers) {
-      if (t && typeof t.rank === "number") prizeByRank.set(t.rank, Number(t.amount) || 0);
-    }
+    const viewRate = pool?.viewRate ?? 0;
 
     const top100 = leaderboard.slice(0, 100).map(({ rank, username, avatarUrl, totalViews, videoCount }) => ({
       rank,
@@ -26,7 +19,7 @@ export async function GET() {
       avatarUrl,
       totalViews,
       videoCount,
-      prize: prizeByRank.get(rank) ?? 0,
+      earnings: Math.round((totalViews / 1000) * viewRate * 100) / 100,
       currency,
     }));
 

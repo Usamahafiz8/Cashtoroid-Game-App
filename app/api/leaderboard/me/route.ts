@@ -16,15 +16,12 @@ export async function GET() {
     const leaderboard = await calculateLeaderboard();
     const entry = leaderboard.find((e) => e.userId === userId);
 
-    // Prize the user's current rank is in line to win, from the active prize pool.
+    // The user's earnings = (approved views / 1000) * viewRate ($ per 1000 views).
     const pool = await prisma.prizePool.findUnique({ where: { id: "singleton" } });
     const currency = pool?.currency ?? "USD";
-    const tiers = (Array.isArray(pool?.tiers) ? pool!.tiers : []) as unknown as Array<{
-      rank: number;
-      amount: number;
-    }>;
-    const prizeForRank = (rank: number) =>
-      tiers.find((t) => t && t.rank === rank)?.amount ?? 0;
+    const viewRate = pool?.viewRate ?? 0;
+    const earningsFor = (views: number) =>
+      Math.round((views / 1000) * viewRate * 100) / 100;
 
     if (!entry) {
       return NextResponse.json({
@@ -33,7 +30,7 @@ export async function GET() {
           rank: null,
           totalViews: 0,
           videoCount: 0,
-          prize: 0,
+          earnings: 0,
           currency,
           message: "No approved videos yet — submit and get approved to appear on the leaderboard.",
         },
@@ -48,7 +45,7 @@ export async function GET() {
         avatarUrl: entry.avatarUrl,
         totalViews: entry.totalViews,
         videoCount: entry.videoCount,
-        prize: prizeForRank(entry.rank),
+        earnings: earningsFor(entry.totalViews),
         currency,
       },
     });
