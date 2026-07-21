@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { registerSchema } from "@/lib/validators";
+import { generateInitialAvatarUrl } from "@/lib/avatar";
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,7 +31,12 @@ export async function POST(req: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: { username, email, password: hashedPassword },
+      data: {
+        username,
+        email,
+        password: hashedPassword,
+        avatarUrl: generateInitialAvatarUrl(username),
+      },
     });
 
     return NextResponse.json(

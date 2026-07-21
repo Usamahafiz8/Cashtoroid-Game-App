@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { generateInitialAvatarUrl } from "../lib/avatar";
 
 const prisma = new PrismaClient();
 
@@ -15,6 +16,7 @@ async function main() {
       email: adminEmail,
       password: adminHash,
       role: "admin",
+      avatarUrl: generateInitialAvatarUrl("admin"),
     },
   });
 
@@ -30,7 +32,7 @@ async function main() {
     const user = await prisma.user.upsert({
       where: { email: u.email },
       update: {},
-      create: { ...u, password: userHash, role: "user" },
+      create: { ...u, password: userHash, role: "user", avatarUrl: generateInitialAvatarUrl(u.username) },
     });
 
     await prisma.video.createMany({

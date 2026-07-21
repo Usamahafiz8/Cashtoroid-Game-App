@@ -6,5 +6,5 @@
     "target": "es2017",
     "noEmit": false
   },
-  "include": ["prisma/seed.ts", "lib/prisma.ts"]
+  "include": ["prisma/seed.ts", "prisma/backfill-avatars.ts", "lib/prisma.ts", "lib/avatar.ts"]
 }
