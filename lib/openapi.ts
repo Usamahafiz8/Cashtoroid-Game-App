@@ -648,11 +648,24 @@ const spec: OpenAPIV3.Document = {
         tags: ["Leaderboard"],
         summary: "Get public leaderboard",
         description:
-          "Returns the top 100 users ranked by total views across all **approved** videos. " +
-          "Tiebreaker: earliest approved video submission date. No authentication required.",
+          "Returns users ranked by total views across all **approved** videos, plus the " +
+          "reset timer and current prize pool. Tiebreaker: earliest approved video " +
+          "submission date. No authentication required.",
+        parameters: [
+          {
+            name: "limit",
+            in: "query",
+            required: false,
+            description:
+              "How many entries to return, 1–100. Defaults to 100. Out-of-range or " +
+              "non-integer values fall back to the default rather than erroring.",
+            schema: { type: "integer", minimum: 1, maximum: 100, default: 100 },
+            example: 10,
+          },
+        ],
         responses: {
           "200": {
-            description: "Top 100 leaderboard entries",
+            description: "Leaderboard entries, reset timer, and prize pool",
             content: {
               "application/json": {
                 schema: {
@@ -664,6 +677,44 @@ const spec: OpenAPIV3.Document = {
                         data: {
                           type: "array",
                           items: { $ref: "#/components/schemas/LeaderboardEntry" },
+                        },
+                        timer: {
+                          type: "object",
+                          description: "Countdown to the next leaderboard reset.",
+                          properties: {
+                            secondsUntilReset: { type: "integer", example: 43200 },
+                            nextResetAt: { type: "string", format: "date-time" },
+                            lastResetAt: { type: "string", format: "date-time" },
+                            periodHours: { type: "integer", example: 24 },
+                          },
+                        },
+                        prizePool: {
+                          type: "object",
+                          description:
+                            "Current prize pool. It has no deadline of its own — it pays out " +
+                            "on the leaderboard reset cycle, so endsAt mirrors timer.nextResetAt.",
+                          properties: {
+                            totalAmount: { type: "number", example: 500 },
+                            currency: { type: "string", example: "USD" },
+                            tiers: {
+                              type: "array",
+                              items: {
+                                type: "object",
+                                properties: {
+                                  rank: { type: "integer", example: 1 },
+                                  amount: { type: "number", example: 250 },
+                                },
+                              },
+                            },
+                            description: { type: "string", nullable: true },
+                            viewRate: {
+                              type: "number",
+                              description: "Dollars per 1000 approved views",
+                              example: 0.5,
+                            },
+                            endsAt: { type: "string", format: "date-time" },
+                            secondsUntilPayout: { type: "integer", example: 43200 },
+                          },
                         },
                       },
                     },

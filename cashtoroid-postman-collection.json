@@ -332,8 +332,8 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": { "raw": "{{base_url}}/api/leaderboard", "host": ["{{base_url}}"], "path": ["api", "leaderboard"] },
-            "description": "Returns the top 100 users ranked by total views across approved videos. No authentication required."
+            "url": { "raw": "{{base_url}}/api/leaderboard?limit=10", "host": ["{{base_url}}"], "path": ["api", "leaderboard"], "query": [{ "key": "limit", "value": "10", "description": "How many entries to return, 1-100 (default: 100). Invalid values fall back to the default." }] },
+            "description": "Returns users ranked by total views across approved videos, plus `timer` (countdown to the next reset) and `prizePool` (totals, tiers, viewRate, endsAt). The prize pool pays out on the leaderboard reset cycle, so prizePool.endsAt mirrors timer.nextResetAt. No authentication required."
           },
           "response": []
         },
