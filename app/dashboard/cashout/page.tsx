@@ -17,6 +17,7 @@ interface Transaction {
 export default function CashoutPage() {
   const [history, setHistory] = useState<Transaction[]>([]);
   const [payoutInfo, setPayoutInfo] = useState("");
+  const [hasPaypalEmail, setHasPaypalEmail] = useState(true); // assume set until we know otherwise, so the form doesn't flash a warning on load
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ amount: "", payoutInfo: "" });
   const [submitting, setSubmitting] = useState(false);
@@ -31,6 +32,7 @@ export default function CashoutPage() {
       const savedPayout = u.data?.payoutInfo ?? "";
       setPayoutInfo(savedPayout);
       setForm((p) => ({ ...p, payoutInfo: savedPayout }));
+      setHasPaypalEmail(!!u.data?.paypalEmail);
       setLoading(false);
     });
   }
@@ -38,6 +40,7 @@ export default function CashoutPage() {
   useEffect(() => { loadData(); }, []);
 
   const hasPending = history.some((t) => t.status === "pending");
+  const canSubmit = !hasPending && hasPaypalEmail;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -48,16 +51,12 @@ export default function CashoutPage() {
       setMsg({ text: "Enter a valid amount.", ok: false });
       return;
     }
-    if (!form.payoutInfo.trim()) {
-      setMsg({ text: "Please provide payout information (e.g. PayPal email, bank details).", ok: false });
-      return;
-    }
 
     setSubmitting(true);
     const res = await fetch("/api/cashout/request", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount, payoutInfo: form.payoutInfo }),
+      body: JSON.stringify({ amount, payoutInfo: form.payoutInfo.trim() || undefined }),
     });
     const d = await res.json();
     setSubmitting(false);
@@ -83,10 +82,20 @@ export default function CashoutPage() {
         <div style={card}>
           <h3 style={cardTitle}>New Cashout Request</h3>
 
-          {hasPending && (
+          {hasPending ? (
             <div style={warnBox}>
               You already have a pending cashout request. Please wait for it to be reviewed before submitting another.
             </div>
+          ) : (
+            !hasPaypalEmail && (
+              <div style={warnBox}>
+                Add a PayPal email on your{" "}
+                <a href="/dashboard/profile" style={{ color: "#92400e", fontWeight: 700 }}>
+                  Profile page
+                </a>{" "}
+                before requesting a cashout — that's where payouts are sent.
+              </div>
+            )
           )}
 
           <form onSubmit={handleSubmit}>
@@ -99,22 +108,22 @@ export default function CashoutPage() {
                 value={form.amount}
                 onChange={(e) => setForm((p) => ({ ...p, amount: e.target.value }))}
                 placeholder="0.00"
-                disabled={hasPending}
-                style={{ ...input, opacity: hasPending ? 0.6 : 1 }}
+                disabled={!canSubmit}
+                style={{ ...input, opacity: canSubmit ? 1 : 0.6 }}
               />
             </div>
             <div style={{ marginBottom: 20 }}>
-              <label style={lbl}>Payout Info</label>
+              <label style={lbl}>Payout Info (optional)</label>
               <div style={{ color: "#a0aec0", fontSize: "0.75rem", marginBottom: 5 }}>
-                PayPal email, bank details, crypto address, etc.
+                Extra notes for the admin — bank details, crypto address, preferred method, etc.
               </div>
               <textarea
                 value={form.payoutInfo}
                 onChange={(e) => setForm((p) => ({ ...p, payoutInfo: e.target.value }))}
                 rows={3}
-                placeholder="e.g. paypal@example.com or Bitcoin: bc1q..."
-                disabled={hasPending}
-                style={{ ...input, resize: "vertical", opacity: hasPending ? 0.6 : 1 }}
+                placeholder="e.g. Bitcoin: bc1q..."
+                disabled={!canSubmit}
+                style={{ ...input, resize: "vertical", opacity: canSubmit ? 1 : 0.6 }}
               />
             </div>
 
@@ -126,11 +135,11 @@ export default function CashoutPage() {
 
             <button
               type="submit"
-              disabled={submitting || hasPending}
+              disabled={submitting || !canSubmit}
               style={{
                 ...btn,
-                backgroundColor: submitting || hasPending ? "#a0aec0" : "#e94560",
-                cursor: submitting || hasPending ? "not-allowed" : "pointer",
+                backgroundColor: submitting || !canSubmit ? "#a0aec0" : "#e94560",
+                cursor: submitting || !canSubmit ? "not-allowed" : "pointer",
               }}
             >
               {submitting ? "Submitting…" : "Request Cashout"}

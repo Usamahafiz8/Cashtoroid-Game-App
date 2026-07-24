@@ -5,6 +5,7 @@ interface Profile {
   id: string;
   username: string;
   email: string;
+  paypalEmail: string | null;
   payoutInfo: string | null;
   isPaid: boolean;
   createdAt: string;
@@ -15,7 +16,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
 
   // Profile form
-  const [pForm, setPForm] = useState({ username: "", email: "", payoutInfo: "" });
+  const [pForm, setPForm] = useState({ username: "", email: "", paypalEmail: "", payoutInfo: "" });
   const [pSaving, setPSaving] = useState(false);
   const [pMsg, setPMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
@@ -33,6 +34,7 @@ export default function ProfilePage() {
           setPForm({
             username: d.data.username,
             email: d.data.email,
+            paypalEmail: d.data.paypalEmail ?? "",
             payoutInfo: d.data.payoutInfo ?? "",
           });
         }
@@ -51,6 +53,7 @@ export default function ProfilePage() {
       body: JSON.stringify({
         username: pForm.username || undefined,
         email: pForm.email || undefined,
+        paypalEmail: pForm.paypalEmail || undefined,
         payoutInfo: pForm.payoutInfo || undefined,
       }),
     });
@@ -161,15 +164,27 @@ export default function ProfilePage() {
                 style={input}
               />
             </Field>
-            <Field label="Payout Info">
+            <Field label="PayPal Email">
               <div style={{ color: "#a0aec0", fontSize: "0.72rem", marginBottom: 5 }}>
-                PayPal email, crypto address, bank details, etc.
+                Required to request a cashout — this is where payouts are sent.
+              </div>
+              <input
+                type="email"
+                value={pForm.paypalEmail}
+                onChange={(e) => setPForm((p) => ({ ...p, paypalEmail: e.target.value }))}
+                placeholder="paypal@example.com"
+                style={input}
+              />
+            </Field>
+            <Field label="Payout Info (optional)">
+              <div style={{ color: "#a0aec0", fontSize: "0.72rem", marginBottom: 5 }}>
+                Extra notes for the admin — crypto address, bank details, preferred method, etc.
               </div>
               <textarea
                 value={pForm.payoutInfo}
                 onChange={(e) => setPForm((p) => ({ ...p, payoutInfo: e.target.value }))}
                 rows={3}
-                placeholder="e.g. paypal@example.com"
+                placeholder="e.g. Bitcoin: bc1q..."
                 style={{ ...input, resize: "vertical" }}
               />
             </Field>
