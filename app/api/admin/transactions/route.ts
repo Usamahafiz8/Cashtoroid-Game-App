@@ -21,10 +21,12 @@ export async function GET(req: NextRequest) {
     });
 
     // See app/api/cashout/history/route.ts — reviewedAt covers both approval
-    // and rejection, so payoutDate is derived to mean specifically "paid on".
+    // and rejection, so payoutDate uses it only for "paid on" (approved).
+    // Pending/rejected requests have no reviewedAt yet (or it means "rejected
+    // on", not "paid on"), so they fall back to the request's createdAt.
     const data = transactions.map((tx) => ({
       ...tx,
-      payoutDate: tx.status === "approved" ? tx.reviewedAt : null,
+      payoutDate: tx.status === "approved" ? tx.reviewedAt : tx.createdAt,
     }));
 
     return NextResponse.json({ success: true, data });
