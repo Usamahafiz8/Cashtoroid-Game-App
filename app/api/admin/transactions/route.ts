@@ -27,6 +27,8 @@ export async function GET(req: NextRequest) {
     const data = transactions.map((tx) => ({
       ...tx,
       payoutDate: tx.status === "approved" ? tx.reviewedAt : tx.createdAt,
+      // Date-only (YYYY-MM-DD) view of createdAt, independent of status.
+      createdDate: tx.createdAt.toISOString().slice(0, 10),
     }));
 
     return NextResponse.json({ success: true, data });
