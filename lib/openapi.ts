@@ -2458,6 +2458,7 @@ const spec: OpenAPIV3.Document = {
           "400": { description: "No file, unsupported type, or file too large", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
           "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
           "500": { description: "Server error or Cloudinary upload failed", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "503": { description: "Cloudinary is not configured on the server (missing or placeholder credentials)", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
         },
       },
     },

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/get-auth-user";
 import { prisma } from "@/lib/prisma";
-import { uploadToCloudinary } from "@/lib/cloudinary";
+import { uploadToCloudinary, CloudinaryConfigError } from "@/lib/cloudinary";
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -50,6 +50,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, data: { avatarUrl: url, user: updated } });
   } catch (err) {
     console.error("[users/me/avatar/upload]", err);
+
+    if (err instanceof CloudinaryConfigError) {
+      return NextResponse.json(
+        { success: false, error: "Image uploads are not configured on this server." },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }
