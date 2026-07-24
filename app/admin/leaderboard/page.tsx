@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { formatViews } from "@/lib/format";
 
 interface LBConfig {
   periodHours: number;
@@ -205,7 +206,7 @@ export default function LeaderboardPage() {
                       #{e.rank}
                     </td>
                     <td style={td}>{e.username}</td>
-                    <td style={td}>{e.totalViews.toLocaleString()}</td>
+                    <td style={td} title={e.totalViews.toLocaleString()}>{formatViews(e.totalViews)}</td>
                   </tr>
                 ))}
               </tbody>

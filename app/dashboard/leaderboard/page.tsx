@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { formatViews } from "@/lib/format";
 
 interface LBEntry {
   rank: number;
@@ -82,8 +83,8 @@ export default function LeaderboardPage() {
               {me?.rank ? `#${me.rank}` : "Unranked"}
             </div>
             {me?.totalViews !== undefined && (
-              <div style={{ color: "#718096", fontSize: "0.75rem" }}>
-                {me.totalViews.toLocaleString()} total views
+              <div style={{ color: "#718096", fontSize: "0.75rem" }} title={`${me.totalViews.toLocaleString()} total views`}>
+                {formatViews(me.totalViews)} total views
               </div>
             )}
           </div>
@@ -140,8 +141,8 @@ export default function LeaderboardPage() {
                       </span>
                     </div>
                   </td>
-                  <td style={{ ...td, fontWeight: 600 }}>
-                    {entry.totalViews.toLocaleString()}
+                  <td style={{ ...td, fontWeight: 600 }} title={entry.totalViews.toLocaleString()}>
+                    {formatViews(entry.totalViews)}
                   </td>
                   <td style={{ ...td, color: "#718096" }}>{entry.videoCount}</td>
                 </tr>
