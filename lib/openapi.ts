@@ -426,7 +426,7 @@ const spec: OpenAPIV3.Document = {
           payoutInfo: { type: "string", nullable: true, description: "Legacy freeform payout info" },
           adminNote: { type: "string", nullable: true },
           reviewedAt: { type: "string", format: "date-time", nullable: true, description: "Set when an admin approves OR rejects — not a payout signal on its own" },
-          payoutDate: { type: "string", format: "date-time", nullable: true, description: "Set only once status is \"approved\" (i.e. actually paid); null otherwise" },
+          payoutDate: { type: "string", format: "date-time", nullable: true, description: "Paid-on date (reviewedAt) once status is \"approved\"; otherwise the request's createdAt" },
           createdAt: { type: "string", format: "date-time" },
         },
       },
@@ -2189,7 +2189,7 @@ const spec: OpenAPIV3.Document = {
         summary: "Get cashout history",
         description:
           "Returns the authenticated user's cashout transaction history, newest first. " +
-          "Each entry includes `payoutDate` — set once the request is approved (paid), null while pending or if rejected.",
+          "Each entry includes `payoutDate` — the paid-on date once approved, otherwise the request's createdAt.",
         security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         responses: {
           "200": {

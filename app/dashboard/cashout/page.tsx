@@ -9,7 +9,7 @@ interface Transaction {
   payoutInfo: string | null;
   adminNote: string | null;
   reviewedAt: string | null;
-  /** Set only once the request is approved (i.e. actually paid); null otherwise. */
+  /** Paid-on date once approved; otherwise the request's createdAt. */
   payoutDate: string | null;
   createdAt: string;
 }

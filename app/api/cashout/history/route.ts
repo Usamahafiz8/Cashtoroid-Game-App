@@ -27,11 +27,12 @@ export async function GET() {
     });
 
     // reviewedAt is set on both approval and rejection, so it can't double as
-    // "when this was paid" — payoutDate is only set for actually-approved
-    // (i.e. paid) requests, null otherwise.
+    // "when this was paid" — payoutDate uses it only for actually-approved
+    // (i.e. paid) requests. Pending/rejected requests fall back to createdAt
+    // (when the request was initiated) instead of leaving the date blank.
     const data = transactions.map((tx) => ({
       ...tx,
-      payoutDate: tx.status === "approved" ? tx.reviewedAt : null,
+      payoutDate: tx.status === "approved" ? tx.reviewedAt : tx.createdAt,
     }));
 
     return NextResponse.json({ success: true, data });
