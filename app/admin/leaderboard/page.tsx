@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { formatViews } from "@/lib/format";
+import { formatViews, formatCountdown } from "@/lib/format";
 
 interface LBConfig {
   periodHours: number;
@@ -23,6 +23,8 @@ export default function LeaderboardPage() {
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [recalcResult, setRecalcResult] = useState<LBEntry[] | null>(null);
 
+  const [now, setNow] = useState<number | null>(null);
+
   useEffect(() => {
     fetch("/api/admin/leaderboard/config")
       .then((r) => r.json())
@@ -31,6 +33,14 @@ export default function LeaderboardPage() {
         setPeriodHours(d.data?.periodHours ?? 24);
         setLoading(false);
       });
+  }, []);
+
+  // Drives the "Time Until Reset" countdown so it ticks live (hh:mm:ss)
+  // instead of freezing at whatever moment the config was fetched.
+  useEffect(() => {
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
   }, []);
 
   function flash(text: string, ok: boolean) {
@@ -85,9 +95,8 @@ export default function LeaderboardPage() {
   if (loading) return <div style={{ padding: 32, color: "#718096" }}>Loading...</div>;
 
   const nextReset = config ? new Date(config.nextResetAt) : null;
-  const msUntilReset = nextReset ? nextReset.getTime() - Date.now() : 0;
-  const hoursUntilReset = Math.max(0, Math.floor(msUntilReset / 3600000));
-  const minsUntilReset = Math.max(0, Math.floor((msUntilReset % 3600000) / 60000));
+  const msUntilReset = nextReset ? Math.max(0, nextReset.getTime() - (now ?? Date.now())) : 0;
+  const secondsUntilReset = Math.floor(msUntilReset / 1000);
 
   return (
     <div style={{ padding: 32 }}>
@@ -111,8 +120,8 @@ export default function LeaderboardPage() {
               />
               <InfoRow
                 label="Time Until Reset"
-                value={`${hoursUntilReset}h ${minsUntilReset}m`}
-                highlight={hoursUntilReset < 2}
+                value={formatCountdown(secondsUntilReset)}
+                highlight={secondsUntilReset < 2 * 3600}
               />
             </div>
           ) : (

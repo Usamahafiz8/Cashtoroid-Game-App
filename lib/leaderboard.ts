@@ -1,5 +1,17 @@
 import { prisma } from "@/lib/prisma";
+import { formatCountdown } from "@/lib/format";
 import type { LeaderboardEntry } from "@/types";
+
+/** Split a seconds count into an hh:mm:ss breakdown, both as numbers and formatted. */
+function breakdown(totalSeconds: number) {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  return {
+    hoursRemaining: Math.floor(s / 3600),
+    minutesRemaining: Math.floor((s % 3600) / 60),
+    secondsRemaining: s % 60,
+    formatted: formatCountdown(s),
+  };
+}
 
 export async function calculateLeaderboard(): Promise<LeaderboardEntry[]> {
   const users = await prisma.user.findMany({
@@ -68,6 +80,11 @@ export async function resetLeaderboard(): Promise<void> {
 
 export async function getLeaderboardTimer(): Promise<{
   secondsUntilReset: number;
+  hoursRemaining: number;
+  minutesRemaining: number;
+  secondsRemaining: number;
+  /** Zero-padded HH:MM:SS countdown, ready to render as-is. */
+  formatted: string;
   nextResetAt: string;
   lastResetAt: string;
   periodHours: number;
@@ -81,8 +98,10 @@ export async function getLeaderboardTimer(): Promise<{
     await prisma.leaderboardConfig.create({
       data: { id: "singleton", periodHours, lastResetAt: now, nextResetAt },
     });
+    const secondsUntilReset = periodHours * 3600;
     return {
-      secondsUntilReset: periodHours * 3600,
+      secondsUntilReset,
+      ...breakdown(secondsUntilReset),
       nextResetAt: nextResetAt.toISOString(),
       lastResetAt: now.toISOString(),
       periodHours,
@@ -96,6 +115,7 @@ export async function getLeaderboardTimer(): Promise<{
 
   return {
     secondsUntilReset,
+    ...breakdown(secondsUntilReset),
     nextResetAt: config.nextResetAt.toISOString(),
     lastResetAt: config.lastResetAt.toISOString(),
     periodHours: config.periodHours,

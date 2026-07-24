@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { formatViews } from "@/lib/format";
+import { formatViews, formatCountdown } from "@/lib/format";
 
 interface LBEntry {
   rank: number;
@@ -17,14 +17,14 @@ interface MyRank {
 
 interface Timer {
   nextResetAt: string;
-  hoursRemaining: number;
-  minutesRemaining: number;
+  secondsUntilReset: number;
 }
 
 export default function LeaderboardPage() {
   const [board, setBoard] = useState<LBEntry[]>([]);
   const [me, setMe] = useState<MyRank | null>(null);
   const [timer, setTimer] = useState<Timer | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,8 +36,18 @@ export default function LeaderboardPage() {
       setBoard(lb.data ?? []);
       setMe(myLb.data ?? null);
       setTimer(t.data ?? null);
+      setSecondsLeft(t.data?.secondsUntilReset ?? null);
       setLoading(false);
     });
+  }, []);
+
+  // Ticks the countdown down locally each second between fetches, so the
+  // reset clock reads live (hh:mm:ss) rather than a stale value from load.
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSecondsLeft((s) => (s === null ? s : Math.max(0, s - 1)));
+    }, 1000);
+    return () => clearInterval(id);
   }, []);
 
   const medal = (rank: number) =>
@@ -58,9 +68,9 @@ export default function LeaderboardPage() {
             <div style={{ color: "#718096", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
               Next Reset
             </div>
-            {timer ? (
-              <div style={{ color: "#1a1a2e", fontSize: "1.4rem", fontWeight: 700 }}>
-                {timer.hoursRemaining}h {timer.minutesRemaining}m
+            {secondsLeft !== null ? (
+              <div style={{ color: "#1a1a2e", fontSize: "1.4rem", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                {formatCountdown(secondsLeft)}
               </div>
             ) : (
               <div style={{ color: "#a0aec0" }}>—</div>

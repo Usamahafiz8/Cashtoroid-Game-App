@@ -27,3 +27,22 @@ export function formatViews(n: number): string {
 
   return String(Math.round(n));
 }
+
+// ── Duration formatting ─────────────────────────────────────────────────────
+
+/**
+ * Zero-padded countdown clock: `HH:MM:SS`.
+ *
+ *   90 → "00:01:30"        3661 → "01:01:01"       90000 → "25:00:00"
+ *
+ * Hours are not capped at 24 — a leaderboard reset period can run past a day
+ * (admin config allows up to 720h), so "25:00:00" is correct, not a bug.
+ */
+export function formatCountdown(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(s / 3600);
+  const minutes = Math.floor((s % 3600) / 60);
+  const seconds = s % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+}
