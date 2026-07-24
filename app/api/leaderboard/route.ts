@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
         // The pool has no deadline of its own — it pays out on the leaderboard
         // reset cycle, so its countdown is the timer above.
         endsAt: timer.nextResetAt,
-        secondsUntilPayout: timer.secondsUntilReset,
+        secondsTillItEnds: timer.secondsUntilReset,
       },
     });
   } catch (err) {

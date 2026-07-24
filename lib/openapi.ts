@@ -715,7 +715,7 @@ const spec: OpenAPIV3.Document = {
                               example: 0.5,
                             },
                             endsAt: { type: "string", format: "date-time" },
-                            secondsUntilPayout: { type: "integer", example: 43200 },
+                            secondsTillItEnds: { type: "integer", example: 43200, description: "Remaining seconds until the prize pool ends (mirrors the leaderboard reset timer)" },
                           },
                         },
                       },
