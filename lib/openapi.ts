@@ -428,6 +428,7 @@ const spec: OpenAPIV3.Document = {
           reviewedAt: { type: "string", format: "date-time", nullable: true, description: "Set when an admin approves OR rejects — not a payout signal on its own" },
           payoutDate: { type: "string", format: "date-time", nullable: true, description: "Paid-on date (reviewedAt) once status is \"approved\"; otherwise the request's createdAt" },
           createdAt: { type: "string", format: "date-time" },
+          createdDate: { type: "string", format: "date", description: "Date-only (YYYY-MM-DD) view of createdAt, present for every status" },
         },
       },
       TransactionWithUser: {
