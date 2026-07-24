@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/get-auth-user";
 import { prisma } from "@/lib/prisma";
 import { videoSubmitSchema } from "@/lib/validators";
+import { dailyVideoLimit, dailyWindowStart, dailyWindowReset, timeUntilReset } from "@/lib/limits";
 
 const platformPatterns: Record<string, RegExp> = {
   youtube: /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/).+/,
@@ -45,15 +46,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const limit = dailyVideoLimit();
     const count = await prisma.video.count({
-      where: { userId, createdAt: { gte: today } },
+      where: { userId, createdAt: { gte: dailyWindowStart() } },
     });
 
-    if (count >= 5) {
+    if (count >= limit) {
       return NextResponse.json(
-        { success: false, error: "Limit exceeded", message: "Daily submission limit reached (5/day)" },
+        {
+          success: false,
+          error: "Limit exceeded",
+          message: `Daily submission limit reached (${limit}/day). Resets in ${timeUntilReset()}.`,
+          data: { limit, used: count, resetsAt: dailyWindowReset().toISOString() },
+        },
         { status: 429 }
       );
     }

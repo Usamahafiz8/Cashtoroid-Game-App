@@ -736,7 +736,8 @@ const spec: OpenAPIV3.Document = {
         description:
           "Submit a YouTube, TikTok, or Instagram video URL for review. " +
           "The video enters **pending** status until an admin approves it. " +
-          "Limits: 5 submissions per user per day. Duplicate URLs are rejected.\n\n" +
+          "Limits: 5 submissions per user per day (configurable via `DAILY_VIDEO_LIMIT`), " +
+          "counted from 00:00 UTC. Duplicate URLs are rejected and do not consume a slot.\n\n" +
           "**URL format requirements:**\n" +
           "- YouTube: `https://www.youtube.com/watch?v=...` or `https://youtu.be/...`\n" +
           "- TikTok: `https://www.tiktok.com/...`\n" +
@@ -776,7 +777,7 @@ const spec: OpenAPIV3.Document = {
           "400": { description: "Validation error or invalid platform URL format", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
           "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
           "409": { description: "URL already submitted", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
-          "429": { description: "Daily limit reached (5/day)", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "429": { description: "Daily limit reached; response includes `data.limit`, `data.used`, and `data.resetsAt`", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
           "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
         },
       },
