@@ -9,6 +9,8 @@ interface AdminTransaction {
   payoutInfo: string | null;
   adminNote: string | null;
   createdAt: string;
+  /** Set only once the request is approved (i.e. actually paid); null otherwise. */
+  payoutDate: string | null;
   user: { id: string; username: string; email: string; avatarUrl: string | null };
 }
 
@@ -92,7 +94,7 @@ export default function TransactionsPage() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
-                {["User", "Amount", "Payout Info", "Status", "Date", "Actions"].map(
+                {["User", "Amount", "Payout Info", "Status", "Submitted", "Payout Date", "Actions"].map(
                   (h) => (
                     <th key={h} style={th}>{h}</th>
                   )
@@ -130,6 +132,13 @@ export default function TransactionsPage() {
                   </td>
                   <td style={{ ...td, fontSize: "0.75rem", color: "#718096", whiteSpace: "nowrap" }}>
                     {new Date(tx.createdAt).toLocaleDateString()}
+                  </td>
+                  <td style={{ ...td, fontSize: "0.75rem", color: "#718096", whiteSpace: "nowrap" }}>
+                    {tx.payoutDate ? (
+                      new Date(tx.payoutDate).toLocaleDateString()
+                    ) : (
+                      <span style={{ color: "#a0aec0" }}>—</span>
+                    )}
                   </td>
                   <td style={{ ...td, minWidth: 220 }}>
                     {tx.status === "pending" ? (

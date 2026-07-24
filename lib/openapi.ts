@@ -303,6 +303,10 @@ const spec: OpenAPIV3.Document = {
         type: "object",
         properties: {
           secondsUntilReset: { type: "integer", example: 7940 },
+          hoursRemaining: { type: "integer", example: 2, description: "Whole hours remaining (not capped at 24 — periods can run past a day)" },
+          minutesRemaining: { type: "integer", example: 12, description: "Remainder minutes, 0-59" },
+          secondsRemaining: { type: "integer", example: 20, description: "Remainder seconds, 0-59" },
+          formatted: { type: "string", example: "02:12:20", description: "Zero-padded HH:MM:SS, ready to render as-is" },
           nextResetAt: { type: "string", format: "date-time" },
           lastResetAt: { type: "string", format: "date-time" },
           periodHours: { type: "integer", example: 24 },
@@ -421,7 +425,8 @@ const spec: OpenAPIV3.Document = {
           paypalEmail: { type: "string", format: "email", nullable: true, description: "PayPal email snapshotted at request time" },
           payoutInfo: { type: "string", nullable: true, description: "Legacy freeform payout info" },
           adminNote: { type: "string", nullable: true },
-          reviewedAt: { type: "string", format: "date-time", nullable: true },
+          reviewedAt: { type: "string", format: "date-time", nullable: true, description: "Set when an admin approves OR rejects — not a payout signal on its own" },
+          payoutDate: { type: "string", format: "date-time", nullable: true, description: "Set only once status is \"approved\" (i.e. actually paid); null otherwise" },
           createdAt: { type: "string", format: "date-time" },
         },
       },
@@ -679,14 +684,10 @@ const spec: OpenAPIV3.Document = {
                           items: { $ref: "#/components/schemas/LeaderboardEntry" },
                         },
                         timer: {
-                          type: "object",
-                          description: "Countdown to the next leaderboard reset.",
-                          properties: {
-                            secondsUntilReset: { type: "integer", example: 43200 },
-                            nextResetAt: { type: "string", format: "date-time" },
-                            lastResetAt: { type: "string", format: "date-time" },
-                            periodHours: { type: "integer", example: 24 },
-                          },
+                          allOf: [
+                            { $ref: "#/components/schemas/LeaderboardTimer" },
+                            { description: "Countdown to the next leaderboard reset." },
+                          ],
                         },
                         prizePool: {
                           type: "object",
@@ -2186,7 +2187,9 @@ const spec: OpenAPIV3.Document = {
       get: {
         tags: ["Cashout"],
         summary: "Get cashout history",
-        description: "Returns the authenticated user's cashout transaction history, newest first.",
+        description:
+          "Returns the authenticated user's cashout transaction history, newest first. " +
+          "Each entry includes `payoutDate` — set once the request is approved (paid), null while pending or if rejected.",
         security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         responses: {
           "200": {

@@ -9,6 +9,8 @@ interface Transaction {
   payoutInfo: string | null;
   adminNote: string | null;
   reviewedAt: string | null;
+  /** Set only once the request is approved (i.e. actually paid); null otherwise. */
+  payoutDate: string | null;
   createdAt: string;
 }
 
@@ -166,7 +168,7 @@ export default function CashoutPage() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  {["Amount", "Payout Info", "Status", "Admin Note", "Submitted"].map((h) => (
+                  {["Amount", "Payout Info", "Status", "Admin Note", "Submitted", "Payout Date"].map((h) => (
                     <th key={h} style={th}>{h}</th>
                   ))}
                 </tr>
@@ -188,6 +190,13 @@ export default function CashoutPage() {
                     </td>
                     <td style={{ ...td, color: "#718096", fontSize: "0.78rem", whiteSpace: "nowrap" }}>
                       {new Date(tx.createdAt).toLocaleDateString()}
+                    </td>
+                    <td style={{ ...td, color: "#718096", fontSize: "0.78rem", whiteSpace: "nowrap" }}>
+                      {tx.payoutDate ? (
+                        new Date(tx.payoutDate).toLocaleDateString()
+                      ) : (
+                        <span style={{ color: "#a0aec0" }}>—</span>
+                      )}
                     </td>
                   </tr>
                 ))}

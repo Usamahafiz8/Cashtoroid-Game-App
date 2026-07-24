@@ -20,7 +20,14 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ success: true, data: transactions });
+    // See app/api/cashout/history/route.ts — reviewedAt covers both approval
+    // and rejection, so payoutDate is derived to mean specifically "paid on".
+    const data = transactions.map((tx) => ({
+      ...tx,
+      payoutDate: tx.status === "approved" ? tx.reviewedAt : null,
+    }));
+
+    return NextResponse.json({ success: true, data });
   } catch (err) {
     console.error("[admin/transactions GET]", err);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });

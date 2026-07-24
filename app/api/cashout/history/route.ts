@@ -26,7 +26,15 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({ success: true, data: transactions });
+    // reviewedAt is set on both approval and rejection, so it can't double as
+    // "when this was paid" — payoutDate is only set for actually-approved
+    // (i.e. paid) requests, null otherwise.
+    const data = transactions.map((tx) => ({
+      ...tx,
+      payoutDate: tx.status === "approved" ? tx.reviewedAt : null,
+    }));
+
+    return NextResponse.json({ success: true, data });
   } catch (err) {
     console.error("[cashout/history]", err);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
