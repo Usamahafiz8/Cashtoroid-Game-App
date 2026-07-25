@@ -485,6 +485,72 @@ const spec: OpenAPIV3.Document = {
         },
       },
 
+      // ── Brief ─────────────────────────────────────────────────────────────────
+      BriefSection: {
+        type: "object",
+        properties: {
+          title: { type: "string", example: "Visual" },
+          description: { type: "string", example: "The creator looking directly at the camera." },
+        },
+      },
+      BriefInstruction: {
+        type: "object",
+        properties: {
+          step: { type: "integer", example: 1 },
+          heading: { type: "string", example: "The Hook" },
+          sections: { type: "array", items: { $ref: "#/components/schemas/BriefSection" } },
+        },
+      },
+      BriefEarnings: {
+        type: "object",
+        properties: {
+          likes: { type: "number", example: 2 },
+          comments: { type: "number", example: 2 },
+          views: { type: "number", example: 2 },
+          total: { type: "number", example: 6, description: "Derived: likes + comments + views" },
+          currency: { type: "string", example: "USD" },
+        },
+      },
+      Brief: {
+        type: "object",
+        properties: {
+          projectTitle: { type: "string", example: "What Posted Is" },
+          titleDescription: { type: "string" },
+          descriptionTitle: { type: "string", example: "What Are You Looking For" },
+          description: { type: "string" },
+          instructionsTitle: { type: "string", example: "How to Make Your Video" },
+          instructions: { type: "array", items: { $ref: "#/components/schemas/BriefInstruction" } },
+          earnings: { $ref: "#/components/schemas/BriefEarnings" },
+          rules: { type: "array", items: { type: "string" }, example: ["Content must be in English."] },
+          isActive: { type: "boolean" },
+          updatedAt: { type: "string", format: "date-time", nullable: true },
+        },
+      },
+      BriefRequest: {
+        type: "object",
+        required: ["projectTitle", "titleDescription", "descriptionTitle", "description", "instructionsTitle", "instructions", "earnings", "rules"],
+        properties: {
+          projectTitle: { type: "string", minLength: 1, maxLength: 200 },
+          titleDescription: { type: "string" },
+          descriptionTitle: { type: "string" },
+          description: { type: "string" },
+          instructionsTitle: { type: "string" },
+          instructions: { type: "array", items: { $ref: "#/components/schemas/BriefInstruction" } },
+          earnings: {
+            type: "object",
+            required: ["likes", "comments", "views", "currency"],
+            properties: {
+              likes: { type: "number", minimum: 0 },
+              comments: { type: "number", minimum: 0 },
+              views: { type: "number", minimum: 0 },
+              currency: { type: "string", minLength: 1, maxLength: 10 },
+            },
+          },
+          rules: { type: "array", items: { type: "string" } },
+          isActive: { type: "boolean" },
+        },
+      },
+
       // ── Avatar ────────────────────────────────────────────────────────────────
       AvatarRequest: {
         type: "object",
@@ -506,6 +572,7 @@ const spec: OpenAPIV3.Document = {
     { name: "PrizePool", description: "Active prize pool configuration (public read, admin write)" },
     { name: "Cashout", description: "User cashout requests and transaction history" },
     { name: "Challenge", description: "Active challenge/brief screen content (public read, admin write)" },
+    { name: "Brief", description: "Brief & Guidelines screen content: project overview, video instructions, earnings, rules (public read, admin write)" },
     { name: "Admin", description: "Admin-only operations (role: admin)" },
     { name: "Cron", description: "Scheduled view update trigger" },
   ],
@@ -2338,6 +2405,91 @@ const spec: OpenAPIV3.Document = {
               },
             },
           },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    // ── Brief / Brief & Guidelines Screen ───────────────────────────────────────
+    "/api/brief": {
+      get: {
+        tags: ["Brief"],
+        summary: "Get active brief",
+        description:
+          "Returns the current Brief & Guidelines screen content: project overview, video instructions, " +
+          "earnings breakdown, and rules. No auth required.",
+        responses: {
+          "200": {
+            description: "Active brief",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/Brief" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+
+    "/api/admin/brief": {
+      get: {
+        tags: ["Admin"],
+        summary: "Get brief (admin)",
+        description: "Admin view of the current Brief & Guidelines config.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        responses: {
+          "200": {
+            description: "Brief",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/Brief" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not an admin", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+      put: {
+        tags: ["Admin"],
+        summary: "Update brief / Brief & Guidelines screen",
+        description:
+          "Creates or updates the Brief & Guidelines content. Changes are **instantly** visible via `GET /api/brief`. " +
+          "Set `isActive: false` to hide the brief from the app. `earnings.total` is derived server-side as likes + comments + views.",
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/BriefRequest" } } },
+        },
+        responses: {
+          "200": {
+            description: "Brief updated",
+            content: {
+              "application/json": {
+                schema: {
+                  allOf: [
+                    { $ref: "#/components/schemas/SuccessResponse" },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/Brief" } } },
+                  ],
+                },
+              },
+            },
+          },
+          "400": { description: "Validation error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "401": { description: "Not authenticated", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          "403": { description: "Not an admin", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
           "500": { description: "Server error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
         },
       },

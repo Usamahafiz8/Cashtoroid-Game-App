@@ -11,6 +11,7 @@ const NAV = [
   { href: "/admin/payouts", label: "Payouts", icon: "💸" },
   { href: "/admin/prize-pool", label: "Prize Pool", icon: "🏆" },
   { href: "/admin/challenge", label: "Challenge", icon: "⚡" },
+  { href: "/admin/brief", label: "Brief & Guidelines", icon: "📋" },
   { href: "/admin/leaderboard", label: "Leaderboard", icon: "📊" },
 ];
 

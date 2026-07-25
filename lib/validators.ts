@@ -147,6 +147,35 @@ export const challengeSchema = z
     }
   });
 
+// ── Brief (Brief & Guidelines screen) ──────────────────────────────────────────
+const briefInstructionSectionSchema = z.object({
+  title: z.string().min(1).max(100),
+  description: z.string().max(5000),
+});
+
+const briefInstructionSchema = z.object({
+  step: z.number().int().min(1),
+  heading: z.string().min(1).max(200),
+  sections: z.array(briefInstructionSectionSchema).max(20),
+});
+
+export const briefSchema = z.object({
+  projectTitle: z.string().min(1, "Project title is required").max(200),
+  titleDescription: z.string().max(2000),
+  descriptionTitle: z.string().max(200),
+  description: z.string().max(20000),
+  instructionsTitle: z.string().max(200),
+  instructions: z.array(briefInstructionSchema).max(50),
+  earnings: z.object({
+    likes: z.number().min(0),
+    comments: z.number().min(0),
+    views: z.number().min(0),
+    currency: z.string().min(1).max(10),
+  }),
+  rules: z.array(z.string().min(1).max(500)).max(50),
+  isActive: z.boolean().optional(),
+});
+
 // ── Avatar ────────────────────────────────────────────────────────────────────
 export const avatarSchema = z.object({
   avatarUrl: z.string().url().max(2000),

@@ -104,3 +104,20 @@ model Challenge {
   endDate     DateTime?
   updatedAt   DateTime  @updatedAt
 }
+
+model Brief {
+  id                String   @id @default("singleton")
+  projectTitle      String   @default("")
+  titleDescription  String   @default("")
+  descriptionTitle  String   @default("")
+  description       String   @default("")
+  instructionsTitle String   @default("")
+  instructions      Json     @default("[]")
+  earningsLikes     Float    @default(0)
+  earningsComments  Float    @default(0)
+  earningsViews     Float    @default(0)
+  earningsCurrency  String   @default("USD")
+  rules             String[] @default([])
+  isActive          Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
+}
