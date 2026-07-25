@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { formatCountdown } from "@/lib/format";
 
 interface Challenge {
   title: string;
@@ -23,21 +24,52 @@ interface PrizePool {
   description: string | null;
 }
 
+interface Timer {
+  nextResetAt: string;
+  secondsUntilReset: number;
+}
+
 export default function ChallengePage() {
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [pool, setPool] = useState<PrizePool | null>(null);
+  const [timer, setTimer] = useState<Timer | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       fetch("/api/challenge").then((r) => r.json()),
       fetch("/api/prize-pool").then((r) => r.json()),
-    ]).then(([c, p]) => {
+      // The prize pool has no deadline of its own — it pays out on the
+      // leaderboard reset cycle, so its countdown is the leaderboard timer.
+      fetch("/api/leaderboard/timer").then((r) => r.json()),
+    ]).then(([c, p, t]) => {
       setChallenge(c.data ?? null);
       setPool(p.data ?? null);
+      setTimer(t.data ?? null);
+      setSecondsLeft(t.data?.secondsUntilReset ?? null);
       setLoading(false);
     });
   }, []);
+
+  // Ticks the countdown down locally each second between fetches, so it reads
+  // live (hh:mm:ss); stops itself once it reaches zero rather than ticking
+  // past the end.
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s === null) return s;
+        if (s <= 1) {
+          clearInterval(id);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const poolEnded = secondsLeft !== null && secondsLeft <= 0;
 
   if (loading) return <div style={{ padding: 32, color: "#718096" }}>Loading…</div>;
 
@@ -132,6 +164,33 @@ export default function ChallengePage() {
                 {pool.description}
               </div>
             )}
+
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #f0f0f0" }}>
+              <div style={sectionLabel}>{poolEnded ? "Status" : "Ends In"}</div>
+              {poolEnded ? (
+                <div style={{ color: "#e94560", fontWeight: 700, fontSize: "0.95rem" }}>
+                  ⏹ Leaderboard has ended
+                </div>
+              ) : (
+                <>
+                  <div
+                    style={{
+                      fontSize: "1.3rem",
+                      fontWeight: 700,
+                      color: "#1a1a2e",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {secondsLeft !== null ? formatCountdown(secondsLeft) : "—"}
+                  </div>
+                  {timer?.nextResetAt && (
+                    <div style={{ color: "#a0aec0", fontSize: "0.75rem", marginTop: 2 }}>
+                      Ends {new Date(timer.nextResetAt).toLocaleString()}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
           {tiers.length > 0 && (

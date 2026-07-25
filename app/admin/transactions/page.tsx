@@ -9,7 +9,7 @@ interface AdminTransaction {
   payoutInfo: string | null;
   adminNote: string | null;
   createdAt: string;
-  /** Set only once the request is approved (i.e. actually paid); null otherwise. */
+  /** Paid-on date once approved; otherwise the request's createdAt. */
   payoutDate: string | null;
   user: { id: string; username: string; email: string; avatarUrl: string | null };
 }
