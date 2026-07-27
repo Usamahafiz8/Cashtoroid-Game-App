@@ -4,11 +4,37 @@ import { prisma } from "@/lib/prisma";
 import { videoSubmitSchema } from "@/lib/validators";
 import { dailyVideoLimit, dailyWindowStart, dailyWindowReset, timeUntilReset } from "@/lib/limits";
 
+// Domain-level matching only. The old patterns pinned exact paths, which
+// bounced legitimate links users actually paste — YouTube Shorts, youtu.be
+// mobile shares, m./music. subdomains, vm./vt. TikTok short links. Everything
+// lands in `pending` for admin review anyway, so a too-strict regex only cost
+// us real submissions; a stray profile URL costs one review click.
 const platformPatterns: Record<string, RegExp> = {
-  youtube: /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/).+/,
-  tiktok: /^https?:\/\/(www\.)?tiktok\.com\/.+/,
-  instagram: /^https?:\/\/(www\.)?instagram\.com\/(reel|p)\/.+/,
+  youtube: /^https?:\/\/([a-z0-9-]+\.)*(youtube\.com|youtube-nocookie\.com|youtu\.be)\/.+/i,
+  tiktok: /^https?:\/\/([a-z0-9-]+\.)*tiktok\.com\/.+/i,
+  instagram: /^https?:\/\/([a-z0-9-]+\.)*instagram\.com\/.+/i,
 };
+
+/**
+ * Make a pasted link usable: strip whitespace (including the zero-width chars
+ * some mobile share sheets inject) and add the scheme people leave off.
+ */
+function normalizeUrl(raw: string): string {
+  // Also drops zero-width joiners and the BOM, which mobile share sheets
+  // slip into copied links and which would otherwise fail every pattern.
+  const cleaned = raw.replace(/[\s\u200B-\u200F\uFEFF]/g, "");
+  if (!cleaned) return cleaned;
+  if (/^https?:\/\//i.test(cleaned)) return cleaned;
+  return `https://${cleaned.replace(/^\/+/, "")}`;
+}
+
+/** Platform implied by the URL's domain, or null if it isn't one we support. */
+function detectPlatform(url: string): string | null {
+  for (const [platform, pattern] of Object.entries(platformPatterns)) {
+    if (pattern.test(url)) return platform;
+  }
+  return null;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,12 +54,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { url, platform, title } = parsed.data;
+    const { title } = parsed.data;
+    const url = normalizeUrl(parsed.data.url);
 
-    const urlPattern = platformPatterns[platform];
-    if (!urlPattern.test(url)) {
+    // The domain decides the platform. A client that sends the wrong `platform`
+    // (or none) is no longer a 400 — the link itself is unambiguous.
+    const platform = detectPlatform(url);
+    if (!platform) {
       return NextResponse.json(
-        { success: false, error: "Validation failed", details: [`Invalid ${platform} URL format`] },
+        {
+          success: false,
+          error: "Validation failed",
+          details: ["Link must be a YouTube, TikTok, or Instagram URL"],
+        },
         { status: 400 }
       );
     }

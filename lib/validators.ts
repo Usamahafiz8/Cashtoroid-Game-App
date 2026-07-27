@@ -55,9 +55,13 @@ export const registerSchema = z.object({
   password: z.string().min(6).max(100),
 });
 
+// Deliberately loose: the submit route normalizes the URL (adds a missing
+// scheme, trims stray whitespace) and derives the platform from the domain, so
+// requiring a strict URL here just rejects pastes the route could have fixed.
+// `platform` is optional for the same reason — the URL is the source of truth.
 export const videoSubmitSchema = z.object({
-  url: z.string().url(),
-  platform: z.enum(["youtube", "tiktok", "instagram"]),
+  url: z.string().min(1, "URL is required").max(2000),
+  platform: z.enum(["youtube", "tiktok", "instagram"]).optional(),
   title: z.string().max(200).optional(),
 });
 

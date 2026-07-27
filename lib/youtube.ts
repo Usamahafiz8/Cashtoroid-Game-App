@@ -1,8 +1,14 @@
 export function extractYouTubeId(url: string): string | null {
+  // Submissions accept any youtube.com/youtu.be link, so every share shape a
+  // creator can produce has to resolve to an ID here — otherwise the video is
+  // approved but never gets a view count.
   const patterns = [
     /[?&]v=([^&#]+)/,
-    /youtu\.be\/([^?#]+)/,
-    /\/embed\/([^?#]+)/,
+    /youtu\.be\/([^?#/]+)/,
+    /\/embed\/([^?#/]+)/,
+    /\/shorts\/([^?#/]+)/,
+    /\/live\/([^?#/]+)/,
+    /\/v\/([^?#/]+)/,
   ];
   for (const re of patterns) {
     const m = url.match(re);
