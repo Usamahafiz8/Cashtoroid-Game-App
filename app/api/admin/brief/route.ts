@@ -37,30 +37,10 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    const {
-      projectTitle,
-      titleDescription,
-      descriptionTitle,
-      description,
-      instructionsTitle,
-      instructions,
-      earnings,
-      rules,
-      isActive,
-    } = parsed.data;
+    const { sections, isActive } = parsed.data;
 
     const data = {
-      projectTitle,
-      titleDescription,
-      descriptionTitle,
-      description,
-      instructionsTitle,
-      instructions,
-      earningsLikes: earnings.likes,
-      earningsComments: earnings.comments,
-      earningsViews: earnings.views,
-      earningsCurrency: earnings.currency,
-      rules,
+      sections,
       isActive: isActive ?? true,
     };
 

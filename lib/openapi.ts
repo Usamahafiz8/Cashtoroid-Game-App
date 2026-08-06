@@ -489,65 +489,42 @@ const spec: OpenAPIV3.Document = {
       // ── Brief ─────────────────────────────────────────────────────────────────
       BriefSection: {
         type: "object",
+        required: ["heading", "description"],
         properties: {
-          title: { type: "string", example: "Visual" },
-          description: { type: "string", example: "The creator looking directly at the camera." },
-        },
-      },
-      BriefInstruction: {
-        type: "object",
-        properties: {
-          step: { type: "integer", example: 1 },
-          heading: { type: "string", example: "The Hook" },
-          sections: { type: "array", items: { $ref: "#/components/schemas/BriefSection" } },
-        },
-      },
-      BriefEarnings: {
-        type: "object",
-        properties: {
-          likes: { type: "number", example: 2 },
-          comments: { type: "number", example: 2 },
-          views: { type: "number", example: 2 },
-          total: { type: "number", example: 6, description: "Derived: likes + comments + views" },
-          currency: { type: "string", example: "USD" },
+          heading: { type: "string", maxLength: 200, example: "Great content ideas:" },
+          description: {
+            type: "array",
+            items: { type: "string", maxLength: 2000 },
+            example: [
+              "🚀 Epic gameplay moments, high scores, and close finishes.",
+              "💬 Natural POV videos talking about your experience and any winnings.",
+            ],
+          },
         },
       },
       Brief: {
+        type: "array",
+        description: "Ordered Brief & Guidelines sections, rendered top to bottom.",
+        items: { $ref: "#/components/schemas/BriefSection" },
+      },
+      AdminBrief: {
         type: "object",
         properties: {
-          projectTitle: { type: "string", example: "What Posted Is" },
-          titleDescription: { type: "string" },
-          descriptionTitle: { type: "string", example: "What Are You Looking For" },
-          description: { type: "string" },
-          instructionsTitle: { type: "string", example: "How to Make Your Video" },
-          instructions: { type: "array", items: { $ref: "#/components/schemas/BriefInstruction" } },
-          earnings: { $ref: "#/components/schemas/BriefEarnings" },
-          rules: { type: "array", items: { type: "string" }, example: ["Content must be in English."] },
+          sections: { type: "array", items: { $ref: "#/components/schemas/BriefSection" } },
           isActive: { type: "boolean" },
           updatedAt: { type: "string", format: "date-time", nullable: true },
         },
       },
       BriefRequest: {
         type: "object",
-        required: ["projectTitle", "titleDescription", "descriptionTitle", "description", "instructionsTitle", "instructions", "earnings", "rules"],
+        required: ["sections"],
         properties: {
-          projectTitle: { type: "string", minLength: 1, maxLength: 200 },
-          titleDescription: { type: "string" },
-          descriptionTitle: { type: "string" },
-          description: { type: "string" },
-          instructionsTitle: { type: "string" },
-          instructions: { type: "array", items: { $ref: "#/components/schemas/BriefInstruction" } },
-          earnings: {
-            type: "object",
-            required: ["likes", "comments", "views", "currency"],
-            properties: {
-              likes: { type: "number", minimum: 0 },
-              comments: { type: "number", minimum: 0 },
-              views: { type: "number", minimum: 0 },
-              currency: { type: "string", minLength: 1, maxLength: 10 },
-            },
+          sections: {
+            type: "array",
+            minItems: 1,
+            maxItems: 50,
+            items: { $ref: "#/components/schemas/BriefSection" },
           },
-          rules: { type: "array", items: { type: "string" } },
           isActive: { type: "boolean" },
         },
       },
@@ -2417,8 +2394,9 @@ const spec: OpenAPIV3.Document = {
         tags: ["Brief"],
         summary: "Get active brief",
         description:
-          "Returns the current Brief & Guidelines screen content: project overview, video instructions, " +
-          "earnings breakdown, and rules. No auth required.",
+          "Returns the Brief & Guidelines screen content as an ordered list of `{ heading, description[] }` " +
+          "sections. No auth required. If no brief has been configured — or it is toggled off — the built-in " +
+          "default sections are returned, so the screen is never blank.",
         responses: {
           "200": {
             description: "Active brief",
@@ -2452,7 +2430,7 @@ const spec: OpenAPIV3.Document = {
                 schema: {
                   allOf: [
                     { $ref: "#/components/schemas/SuccessResponse" },
-                    { type: "object", properties: { data: { $ref: "#/components/schemas/Brief" } } },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/AdminBrief" } } },
                   ],
                 },
               },
@@ -2467,8 +2445,9 @@ const spec: OpenAPIV3.Document = {
         tags: ["Admin"],
         summary: "Update brief / Brief & Guidelines screen",
         description:
-          "Creates or updates the Brief & Guidelines content. Changes are **instantly** visible via `GET /api/brief`. " +
-          "Set `isActive: false` to hide the brief from the app. `earnings.total` is derived server-side as likes + comments + views.",
+          "Replaces the Brief & Guidelines sections. Changes are **instantly** visible via `GET /api/brief`. " +
+          "Sections are stored and returned in the order supplied. Set `isActive: false` to fall back to the " +
+          "built-in default sections on the public endpoint.",
         security: [{ bearerAuth: [] }, { cookieAuth: [] }],
         requestBody: {
           required: true,
@@ -2482,7 +2461,7 @@ const spec: OpenAPIV3.Document = {
                 schema: {
                   allOf: [
                     { $ref: "#/components/schemas/SuccessResponse" },
-                    { type: "object", properties: { data: { $ref: "#/components/schemas/Brief" } } },
+                    { type: "object", properties: { data: { $ref: "#/components/schemas/AdminBrief" } } },
                   ],
                 },
               },
